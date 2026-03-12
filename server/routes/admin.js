@@ -7,6 +7,42 @@ const router = express.Router();
 
 router.use(authMiddleware, adminOnly);
 
+// POST /api/admin/users — create a new user account
+router.post('/users', async (req, res) => {
+  const { email, name, role = 'user' } = req.body;
+  if (!email || !name) {
+    return res.status(400).json({ error: 'email and name are required' });
+  }
+  if (!['user', 'admin'].includes(role)) {
+    return res.status(400).json({ error: 'role must be user or admin' });
+  }
+
+  const normalEmail = email.toLowerCase().trim();
+
+  try {
+    const existing = await db.execute({
+      sql: 'SELECT id FROM users WHERE email = ?',
+      args: [normalEmail]
+    });
+    if (existing.rows[0]) {
+      return res.status(409).json({ error: 'An account with that email already exists' });
+    }
+
+    const result = await db.execute({
+      sql: 'INSERT INTO users (email, name, role) VALUES (?, ?, ?)',
+      args: [normalEmail, name.trim(), role]
+    });
+    const newUser = await db.execute({
+      sql: 'SELECT id, email, name, role, created_at FROM users WHERE id = ?',
+      args: [Number(result.lastInsertRowid)]
+    });
+    res.status(201).json({ ...newUser.rows[0] });
+  } catch (err) {
+    console.error('Create user error:', err);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
 // GET /api/admin/users
 router.get('/users', async (req, res) => {
   try {

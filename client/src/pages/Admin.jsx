@@ -48,6 +48,15 @@ export default function Admin() {
   const [badgeError, setBadgeError] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // Add user state
+  const [newEmail, setNewEmail] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newRole, setNewRole] = useState('user');
+  const [addUserSuccess, setAddUserSuccess] = useState('');
+  const [addUserError, setAddUserError] = useState('');
+  const [addingUser, setAddingUser] = useState(false);
+  const [showAddUser, setShowAddUser] = useState(false);
+
   // Award state
   const [awardUserId, setAwardUserId] = useState('');
   const [awardBadgeId, setAwardBadgeId] = useState('');
@@ -120,6 +129,30 @@ export default function Admin() {
     }
   };
 
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+    setAddUserError('');
+    setAddUserSuccess('');
+    setAddingUser(true);
+    try {
+      const result = await api('/users', {
+        method: 'POST',
+        body: JSON.stringify({ email: newEmail, name: newName, role: newRole }),
+      });
+      if (result.error) throw new Error(result.error);
+      setUsers(prev => [{ ...result, badges: [], progressSummary: {}, totalCompleted: 0, lastActive: null }, ...prev]);
+      setAddUserSuccess(`Account created for ${result.name}`);
+      setNewEmail('');
+      setNewName('');
+      setNewRole('user');
+      setShowAddUser(false);
+      setTimeout(() => setAddUserSuccess(''), 4000);
+    } catch (err) {
+      setAddUserError(err.message);
+    }
+    setAddingUser(false);
+  };
+
   const filteredUsers = users.filter(u =>
     !search ||
     u.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -162,7 +195,7 @@ export default function Admin() {
           {/* Users Tab */}
           {activeTab === 'users' && (
             <div>
-              <div className="flex gap-4 mb-4">
+              <div className="flex gap-4 mb-4 items-center">
                 <div className="relative flex-1 max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                   <input
@@ -176,7 +209,66 @@ export default function Admin() {
                 <div className="badge-pill bg-white/10 text-text-muted">
                   {filteredUsers.length} users
                 </div>
+                <button
+                  onClick={() => { setShowAddUser(v => !v); setAddUserError(''); setAddUserSuccess(''); }}
+                  className="btn-primary flex items-center gap-2 ml-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add User
+                </button>
               </div>
+
+              {addUserSuccess && (
+                <div className="bg-success/10 border border-success/20 text-success rounded-lg px-4 py-3 mb-4 text-sm flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  {addUserSuccess}
+                </div>
+              )}
+
+              {showAddUser && (
+                <div className="card mb-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base font-semibold text-text-primary">Add New User</h3>
+                    <button onClick={() => setShowAddUser(false)} className="text-text-muted hover:text-text-primary">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {addUserError && (
+                    <div className="bg-error/10 border border-error/20 text-error rounded-lg px-4 py-3 mb-4 text-sm">
+                      {addUserError}
+                    </div>
+                  )}
+                  <form onSubmit={handleAddUser} className="flex gap-3 flex-wrap">
+                    <input
+                      type="text"
+                      className="input flex-1 min-w-40"
+                      placeholder="Full name"
+                      value={newName}
+                      onChange={e => setNewName(e.target.value)}
+                      required
+                    />
+                    <input
+                      type="email"
+                      className="input flex-1 min-w-48"
+                      placeholder="Email address"
+                      value={newEmail}
+                      onChange={e => setNewEmail(e.target.value)}
+                      required
+                    />
+                    <select
+                      className="input w-32"
+                      value={newRole}
+                      onChange={e => setNewRole(e.target.value)}
+                    >
+                      <option value="user">User</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    <button type="submit" disabled={addingUser} className="btn-primary">
+                      {addingUser ? 'Adding...' : 'Add'}
+                    </button>
+                  </form>
+                </div>
+              )}
 
               <div className="card overflow-hidden p-0">
                 <div className="overflow-x-auto">

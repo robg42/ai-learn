@@ -1,10 +1,9 @@
 const express = require('express');
-const db = require('../db');
+const { db } = require('../db');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
-// Badge trigger rules: slug -> function(completedSubsections) => boolean
 const BADGE_TRIGGERS = {
   'first-steps': (completed) => completed.has('what-are-llms'),
   'llm-master': (completed) => {
@@ -42,43 +41,55 @@ const BADGE_TRIGGERS = {
   }
 };
 
-// POST /api/badges/auto-check - Check and award auto badges
-router.post('/auto-check', authMiddleware, (req, res) => {
-  const userId = req.user.id;
+// POST /api/badges/auto-check
+router.post('/auto-check', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
 
-  // Get all completed subsections for user
-  const completedRows = db.prepare('SELECT subsection_id FROM progress WHERE user_id = ?').all(userId);
-  const completed = new Set(completedRows.map(r => r.subsection_id));
+    const completedResult = await db.execute({
+      sql: 'SELECT subsection_id FROM progress WHERE user_id = ?',
+      args: [userId]
+    });
+    const completed = new Set(completedResult.rows.map(r => r.subsection_id));
 
-  // Get already awarded badges
-  const awardedRows = db.prepare(`
-    SELECT bd.slug FROM badge_awards ba
-    JOIN badge_definitions bd ON bd.id = ba.badge_id
-    WHERE ba.user_id = ?
-  `).all(userId);
-  const alreadyAwarded = new Set(awardedRows.map(r => r.slug));
+    const awardedResult = await db.execute({
+      sql: `SELECT bd.slug FROM badge_awards ba
+            JOIN badge_definitions bd ON bd.id = ba.badge_id
+            WHERE ba.user_id = ?`,
+      args: [userId]
+    });
+    const alreadyAwarded = new Set(awardedResult.rows.map(r => r.slug));
 
-  const newBadges = [];
+    const newBadges = [];
 
-  for (const [slug, triggerFn] of Object.entries(BADGE_TRIGGERS)) {
-    if (alreadyAwarded.has(slug)) continue;
-    if (triggerFn(completed)) {
-      const badge = db.prepare('SELECT * FROM badge_definitions WHERE slug = ?').get(slug);
-      if (badge) {
-        try {
-          db.prepare(`
-            INSERT OR IGNORE INTO badge_awards (user_id, badge_id, awarded_by)
-            VALUES (?, ?, NULL)
-          `).run(userId, badge.id);
-          newBadges.push(badge);
-        } catch (err) {
-          console.error('Badge award error:', err);
+    for (const [slug, triggerFn] of Object.entries(BADGE_TRIGGERS)) {
+      if (alreadyAwarded.has(slug)) continue;
+      if (triggerFn(completed)) {
+        const badgeResult = await db.execute({
+          sql: 'SELECT * FROM badge_definitions WHERE slug = ?',
+          args: [slug]
+        });
+        const badge = badgeResult.rows[0];
+        if (badge) {
+          try {
+            await db.execute({
+              sql: `INSERT OR IGNORE INTO badge_awards (user_id, badge_id, awarded_by)
+                    VALUES (?, ?, NULL)`,
+              args: [userId, badge.id]
+            });
+            newBadges.push({ ...badge });
+          } catch (err) {
+            console.error('Badge award error:', err);
+          }
         }
       }
     }
-  }
 
-  res.json({ newBadges });
+    res.json({ newBadges });
+  } catch (err) {
+    console.error('auto-check error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 module.exports = router;

@@ -2,6 +2,7 @@ node_modules/
 data/
 dist/
 server/public/
+public/
 .env
 *.db
 .DS_Store

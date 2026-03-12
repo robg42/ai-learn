@@ -1,26 +1,31 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
-function getResend() {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return null;
-  return new Resend(apiKey);
+function getTransporter() {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) return null;
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  });
 }
 
 /**
- * Send a magic link email to the user.
- * Falls back to console logging if RESEND_API_KEY is not set.
+ * Send a magic link email to the user via Gmail SMTP.
+ * Falls back to console logging if GMAIL_USER / GMAIL_APP_PASSWORD are not set.
  */
 async function sendMagicLink({ to, name, magicLink, token, ttlMinutes }) {
-  const resend = getResend();
-  const from = process.env.RESEND_FROM_EMAIL || 'AI Learn <noreply@learn.robgregg.com>';
+  const transporter = getTransporter();
 
-  if (!resend) {
-    console.log(`\n[MAGIC LINK] No RESEND_API_KEY — logging token instead`);
+  if (!transporter) {
+    console.log(`\n[MAGIC LINK] No Gmail credentials — logging token instead`);
     console.log(`[MAGIC LINK] User: ${to} (${name})`);
     console.log(`[MAGIC LINK] Link (expires in ${ttlMinutes} min): ${magicLink}`);
     console.log(`[MAGIC LINK] Token only: ${token}\n`);
     return;
   }
+
+  const from = `"AI Learn" <${process.env.GMAIL_USER}>`;
 
   const html = `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #0f0f13; color: #e2e8f0; border-radius: 12px;">
@@ -50,7 +55,7 @@ async function sendMagicLink({ to, name, magicLink, token, ttlMinutes }) {
   `;
 
   try {
-    await resend.emails.send({
+    await transporter.sendMail({
       from,
       to,
       subject: 'Your AI Learn sign-in link',
@@ -58,7 +63,6 @@ async function sendMagicLink({ to, name, magicLink, token, ttlMinutes }) {
     });
     console.log(`[email] Magic link sent to ${to}`);
   } catch (err) {
-    // Fall back to console so sign-in still works even if email fails
     console.error('[email] Failed to send magic link email:', err.message);
     console.log(`[MAGIC LINK FALLBACK] Token for ${to}: ${token}`);
   }

@@ -20,21 +20,12 @@ router.post('/magic-request', async (req, res) => {
       sql: 'SELECT id, email, name, role FROM users WHERE email = ?',
       args: [normalEmail]
     });
-    let user = userResult.rows[0] ? { ...userResult.rows[0] } : null;
+    const user = userResult.rows[0] ? { ...userResult.rows[0] } : null;
 
+    // Unknown email — silently return success to avoid leaking whether an account exists
     if (!user) {
-      if (!name || !name.trim()) {
-        return res.status(400).json({ error: 'Name is required for new accounts' });
-      }
-      const insertResult = await db.execute({
-        sql: 'INSERT INTO users (email, name, role) VALUES (?, ?, ?)',
-        args: [normalEmail, name.trim(), 'user']
-      });
-      const newUserResult = await db.execute({
-        sql: 'SELECT id, email, name, role FROM users WHERE id = ?',
-        args: [Number(insertResult.lastInsertRowid)]
-      });
-      user = newUserResult.rows[0] ? { ...newUserResult.rows[0] } : null;
+      console.log(`[MAGIC LINK] Unknown email attempted: ${normalEmail}`);
+      return res.json({ message: 'Magic link sent' });
     }
 
     await db.execute({

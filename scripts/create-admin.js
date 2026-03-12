@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /**
- * Create or promote an admin user directly in the SQLite database.
+ * Create or promote an admin user in the Turso database.
  *
  * Usage:
  *   node scripts/create-admin.js --email admin@company.com --name "Jane Admin"
  *
  * If the user already exists, they are promoted to admin.
  * Login is via magic link — no password required.
+ *
+ * Requires TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in .env (or environment).
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+const { db, initDb } = require('../server/db');
 
 const args = process.argv.slice(2);
 const get = (flag) => {
@@ -29,34 +29,42 @@ if (!email || !name) {
   process.exit(1);
 }
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'ai-learn.db');
-const dataDir = path.dirname(dbPath);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+async function main() {
+  await initDb();
 
-// Init schema
-require('../server/db');
+  const normalEmail = email.toLowerCase().trim();
+  const existing = await db.execute({
+    sql: 'SELECT id, role FROM users WHERE email = ?',
+    args: [normalEmail]
+  });
+  const user = existing.rows[0];
 
-const db = new Database(dbPath);
-
-const existing = db.prepare('SELECT id, role FROM users WHERE email = ?').get(email.toLowerCase());
-
-if (existing) {
-  if (existing.role === 'admin') {
-    console.log(`User ${email} is already an admin.`);
+  if (user) {
+    if (user.role === 'admin') {
+      console.log(`User ${normalEmail} is already an admin.`);
+    } else {
+      await db.execute({
+        sql: 'UPDATE users SET role = ? WHERE id = ?',
+        args: ['admin', user.id]
+      });
+      console.log(`Promoted ${normalEmail} to admin.`);
+    }
   } else {
-    db.prepare('UPDATE users SET role = ? WHERE id = ?').run('admin', existing.id);
-    console.log(`Promoted ${email} to admin.`);
+    const result = await db.execute({
+      sql: 'INSERT INTO users (email, name, role) VALUES (?, ?, ?)',
+      args: [normalEmail, name, 'admin']
+    });
+    console.log(`\nAdmin user created!`);
+    console.log(`  Name:  ${name}`);
+    console.log(`  Email: ${normalEmail}`);
+    console.log(`  ID:    ${result.lastInsertRowid}`);
+    console.log(`\nLog in via magic link at the application URL.\n`);
   }
-} else {
-  const result = db.prepare(
-    'INSERT INTO users (email, name, role) VALUES (?, ?, ?)'
-  ).run(email.toLowerCase(), name, 'admin');
 
-  console.log(`\nAdmin user created!`);
-  console.log(`  Name:  ${name}`);
-  console.log(`  Email: ${email}`);
-  console.log(`  ID:    ${result.lastInsertRowid}`);
-  console.log(`\nLog in via magic link at the application URL.\n`);
+  process.exit(0);
 }
+
+main().catch(err => {
+  console.error('Error:', err.message);
+  process.exit(1);
+});

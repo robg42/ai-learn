@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { db } = require('../db');
+const { sendMagicLink } = require('../email');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme_in_production';
@@ -50,9 +51,7 @@ router.post('/magic-request', async (req, res) => {
     });
 
     const magicLink = `${BASE_URL}?token=${token}`;
-    console.log(`\n[MAGIC LINK] User: ${user.email} (${user.name})`);
-    console.log(`[MAGIC LINK] Link (expires in ${TOKEN_TTL_MINUTES} min): ${magicLink}`);
-    console.log(`[MAGIC LINK] Token only: ${token}\n`);
+    await sendMagicLink({ to: user.email, name: user.name, magicLink, token, ttlMinutes: TOKEN_TTL_MINUTES });
 
     res.json({ message: 'Magic link sent' });
   } catch (err) {

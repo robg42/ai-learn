@@ -94,4 +94,20 @@ router.post('/magic-verify', async (req, res) => {
   }
 });
 
+// PATCH /api/auth/me — update name after first login
+router.patch('/me', require('../middleware/auth'), async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
+    await db.execute({
+      sql: 'UPDATE users SET name = ? WHERE id = ?',
+      args: [name.trim(), req.user.id]
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Update name error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;

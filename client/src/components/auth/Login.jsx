@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 export default function Login() {
   const { requestMagicLink, verifyMagicLink } = useAuth();
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
   const [stage, setStage] = useState('request'); // 'request' | 'sent'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,7 +34,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await requestMagicLink(email, name || undefined);
+      await requestMagicLink(email);
       setStage('sent');
     } catch (err) {
       setError(err.message);
@@ -102,20 +101,6 @@ export default function Login() {
                     onChange={e => setEmail(e.target.value)}
                     required
                     autoFocus
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-text-muted mb-1.5">
-                    Your name{' '}
-                    <span className="text-text-muted/60 font-normal">(first time only)</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="input"
-                    placeholder="Jane Smith"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
                   />
                 </div>
 

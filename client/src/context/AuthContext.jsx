@@ -54,6 +54,19 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  const updateName = useCallback(async (name) => {
+    const t = localStorage.getItem('ai_learn_token');
+    const res = await fetch('/api/auth/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update name');
+    setUser(u => ({ ...u, name }));
+    return data;
+  }, []);
+
   const verifyMagicLink = useCallback(async (magicToken) => {
     const res = await fetch('/api/auth/magic-verify', {
       method: 'POST',
@@ -69,7 +82,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, requestMagicLink, verifyMagicLink, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, requestMagicLink, verifyMagicLink, updateName, logout }}>
       {children}
     </AuthContext.Provider>
   );

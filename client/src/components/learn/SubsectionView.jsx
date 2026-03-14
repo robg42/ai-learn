@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, CheckCircle, Lock, ChevronRight, Trophy } from 'lucide-react';
+import { Clock, CheckCircle, Lock, ChevronRight, Trophy, RefreshCw } from 'lucide-react';
 import KnowledgeCheck from './KnowledgeCheck';
 import { useProgress } from '../../context/ProgressContext';
 import * as Visuals from '../visuals';
@@ -7,12 +7,14 @@ import * as Visuals from '../visuals';
 export default function SubsectionView({ section, subsection, onNext, onBackToOverview }) {
   const { isSubsectionCompleted, isSubsectionUnlocked, completeSubsection } = useProgress();
   const [quizPassed, setQuizPassed] = useState(false);
+  const [retaking, setRetaking] = useState(false);
 
   const isCompleted = isSubsectionCompleted(subsection.id);
   const isUnlocked = isSubsectionUnlocked(section.id, subsection.id);
 
   const handlePass = async (score) => {
     setQuizPassed(true);
+    setRetaking(false);
     await completeSubsection(section.id, subsection.id, score);
   };
 
@@ -26,13 +28,16 @@ export default function SubsectionView({ section, subsection, onNext, onBackToOv
         </div>
         <h3 className="text-xl font-semibold text-text-primary mb-2">Locked</h3>
         <p className="text-text-muted max-w-sm">
-          Complete the previous course to unlock this content.
+          Complete the previous lesson to unlock this one.
         </p>
       </div>
     );
   }
 
-  const showCompletion = isCompleted || quizPassed;
+  // Show quiz when: lesson not yet completed OR user is retaking
+  const showQuiz = (!isCompleted && !quizPassed) || retaking;
+  // Show the completion/navigation bar when: just passed the quiz, or already done and not retaking
+  const showCompletionBar = (quizPassed && !retaking) || (isCompleted && !retaking);
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -44,7 +49,7 @@ export default function SubsectionView({ section, subsection, onNext, onBackToOv
             style={{ backgroundColor: section.color }}
           />
           <span className="text-sm text-text-muted">{section.title}</span>
-          {isCompleted && (
+          {isCompleted && !retaking && (
             <div className="ml-auto flex items-center gap-1.5 text-success text-sm">
               <CheckCircle className="w-4 h-4" />
               Completed
@@ -74,20 +79,42 @@ export default function SubsectionView({ section, subsection, onNext, onBackToOv
         </div>
       )}
 
-      {/* Knowledge Check — shown when not yet complete */}
-      {!showCompletion && subsection.quiz?.length > 0 && (
+      {/* Knowledge Check — always shown for active or retake */}
+      {showQuiz && subsection.quiz?.length > 0 && (
         <div className="mt-8 pt-8 border-t border-white/10">
+          {isCompleted && retaking && (
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm text-text-muted">Reviewing knowledge check</span>
+              <button
+                onClick={() => setRetaking(false)}
+                className="text-xs text-text-muted hover:text-text-primary flex items-center gap-1"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
           <KnowledgeCheck quiz={subsection.quiz} onPass={handlePass} />
         </div>
       )}
 
-      {/* Completion bar — always shown once done, with Next or Course Overview fallback */}
-      {showCompletion && (
+      {/* Completion bar with Next or overview fallback */}
+      {showCompletionBar && (
         <div className="mt-8 pt-8 border-t border-white/10">
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-2 text-success">
-              <CheckCircle className="w-5 h-5" />
-              <span className="font-semibold">Lesson complete!</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-success">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-semibold">Lesson complete!</span>
+              </div>
+              {subsection.quiz?.length > 0 && (
+                <button
+                  onClick={() => setRetaking(true)}
+                  className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Retake quiz
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {onNext ? (
@@ -104,7 +131,6 @@ export default function SubsectionView({ section, subsection, onNext, onBackToOv
                   {onBackToOverview && (
                     <button onClick={onBackToOverview} className="btn-secondary flex items-center gap-2">
                       Course overview
-                      <ChevronRight className="w-4 h-4" />
                     </button>
                   )}
                 </>

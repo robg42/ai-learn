@@ -34,7 +34,7 @@ export default function KnowledgeCheck({ quiz, onPass }) {
       });
 
       const score = Math.round((qResults.filter(r => r.isCorrect).length / quiz.length) * 100);
-      const passed = score >= 75;
+      const passed = score >= 60;
 
       setResults({ qResults, score, passed });
       setSubmitted(true);
@@ -78,7 +78,7 @@ export default function KnowledgeCheck({ quiz, onPass }) {
         <h3 className="text-lg font-semibold text-text-primary">Knowledge Check</h3>
         {results && (
           <div className={`badge-pill ${results.passed ? 'bg-success/20 text-success' : 'bg-error/20 text-error'}`}>
-            {results.score}% {results.passed ? '— Passed!' : '— Need 75%'}
+            {results.score}% {results.passed ? '— Passed!' : '— Need 60%'}
           </div>
         )}
       </div>
@@ -86,7 +86,7 @@ export default function KnowledgeCheck({ quiz, onPass }) {
       {submitted && !results?.passed && (
         <div className="bg-error/10 border border-error/20 rounded-lg p-4">
           <p className="text-error text-sm font-medium">
-            You scored {results?.score}%. You need at least 75% to complete this subsection.
+            You scored {results?.score}%. You need at least 60% to complete this subsection.
             Review the explanations below and try again.
           </p>
         </div>

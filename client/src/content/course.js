@@ -131,7 +131,7 @@ Transformers use positional encodings to preserve order information, since self-
 
 Anthropic builds the Claude family of models, emphasising Constitutional AI and safety research. Claude models are available via the Anthropic API and are designed with helpfulness, harmlessness, and honesty as core objectives. The Claude 3 and Claude 4 series include models at different capability/cost tiers: Haiku for fast, cheap tasks; Sonnet for balanced performance; Opus for maximum capability.
 
-OpenAI produces the GPT series and the o-series reasoning models. GPT-4o is their flagship multimodal model; o1 and o3 are designed for complex multi-step reasoning through extended chain-of-thought. OpenAI also operates ChatGPT as a consumer product.
+OpenAI produces the GPT-5 model family and operates ChatGPT as a consumer product. As of early 2026, the lineup spans from GPT-5 (launched mid-2025) through GPT-5.4, their most capable frontier model, which excels at professional knowledge work, agentic coding, and complex reasoning. GPT-5.3 Instant serves as the fast default for everyday tasks, while GPT-5.4 Pro targets demanding professional use cases.
 
 Google DeepMind develops the Gemini family, integrated into Google Cloud (Vertex AI) and consumer products. Gemini models have exceptionally large context windows and strong multimodal capabilities.
 

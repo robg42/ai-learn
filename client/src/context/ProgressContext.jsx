@@ -4,11 +4,28 @@ import { SECTIONS } from '../content/course';
 
 const ProgressContext = createContext(null);
 
-// Unlock rules
+// Returns all courses for a section (Course 1 = existing subsections, + additionalCourses)
+export function getSectionCourses(section) {
+  const c1 = {
+    id: `${section.id}-c1`,
+    title: 'Course 1: The Essentials',
+    level: 1,
+    description: section.description,
+    subsections: section.subsections,
+  };
+  return [c1, ...(section.additionalCourses || [])];
+}
+
+// Returns all subsections across all courses in a section
+export function getAllSubsections(section) {
+  return getSectionCourses(section).flatMap(c => c.subsections);
+}
+
+// Unlock rules (by first subsection of each section)
 const UNLOCK_RULES = {
-  'llm-basics': () => true,
-  'agentic-ai': (completed) => completed.has('what-are-llms'),
-  'ai-security': (completed) => completed.has('what-is-agentic-ai'),
+  'llm-basics':   () => true,
+  'agentic-ai':   (completed) => completed.has('what-are-llms'),
+  'ai-security':  (completed) => completed.has('what-is-agentic-ai'),
 };
 
 export function ProgressProvider({ children }) {
@@ -47,15 +64,35 @@ export function ProgressProvider({ children }) {
     return rule ? rule(completedSet) : false;
   }, [completedSet]);
 
+  // A course unlocks when the previous course is fully completed (or it's the first course)
+  const isCourseUnlocked = useCallback((sectionId, courseId) => {
+    if (!isSectionUnlocked(sectionId)) return false;
+    const section = SECTIONS.find(s => s.id === sectionId);
+    if (!section) return false;
+    const courses = getSectionCourses(section);
+    const idx = courses.findIndex(c => c.id === courseId);
+    if (idx === 0) return true;
+    const prevCourse = courses[idx - 1];
+    return prevCourse.subsections.every(s => completedSet.has(s.id));
+  }, [isSectionUnlocked, completedSet]);
+
   const isSubsectionUnlocked = useCallback((sectionId, subsectionId) => {
     if (!isSectionUnlocked(sectionId)) return false;
     const section = SECTIONS.find(s => s.id === sectionId);
     if (!section) return false;
-    const idx = section.subsections.findIndex(s => s.id === subsectionId);
-    if (idx === 0) return true;
-    const prevSub = section.subsections[idx - 1];
-    return completedSet.has(prevSub.id);
-  }, [isSectionUnlocked, completedSet]);
+    const courses = getSectionCourses(section);
+    for (let ci = 0; ci < courses.length; ci++) {
+      const course = courses[ci];
+      const idx = course.subsections.findIndex(s => s.id === subsectionId);
+      if (idx === -1) continue;
+      // Course must be unlocked first
+      if (!isCourseUnlocked(sectionId, course.id)) return false;
+      // First subsection of course: unlocked when course is unlocked
+      if (idx === 0) return true;
+      return completedSet.has(course.subsections[idx - 1].id);
+    }
+    return false;
+  }, [isSectionUnlocked, isCourseUnlocked, completedSet]);
 
   const isSubsectionCompleted = useCallback((subsectionId) => {
     return completedSet.has(subsectionId);
@@ -73,7 +110,6 @@ export function ProgressProvider({ children }) {
         body: JSON.stringify({ sectionId, subsectionId, quizScore })
       });
 
-      // Check for new badges
       const badgeRes = await fetch('/api/badges/auto-check', {
         method: 'POST',
         headers: {
@@ -84,10 +120,8 @@ export function ProgressProvider({ children }) {
       });
       const badgeData = await badgeRes.json();
 
-      // Refresh progress
       await fetchProgress();
 
-      // Show new badges
       if (badgeData.newBadges?.length > 0) {
         setNewBadges(badgeData.newBadges);
       }
@@ -101,13 +135,25 @@ export function ProgressProvider({ children }) {
   const getSectionProgress = useCallback((sectionId) => {
     const section = SECTIONS.find(s => s.id === sectionId);
     if (!section) return { completed: 0, total: 0, percent: 0 };
-    const total = section.subsections.length;
-    const completed = section.subsections.filter(s => completedSet.has(s.id)).length;
+    const all = getAllSubsections(section);
+    const total = all.length;
+    const completed = all.filter(s => completedSet.has(s.id)).length;
+    return { completed, total, percent: total > 0 ? Math.round((completed / total) * 100) : 0 };
+  }, [completedSet]);
+
+  const getCourseProgress = useCallback((sectionId, courseId) => {
+    const section = SECTIONS.find(s => s.id === sectionId);
+    if (!section) return { completed: 0, total: 0, percent: 0 };
+    const courses = getSectionCourses(section);
+    const course = courses.find(c => c.id === courseId);
+    if (!course) return { completed: 0, total: 0, percent: 0 };
+    const total = course.subsections.length;
+    const completed = course.subsections.filter(s => completedSet.has(s.id)).length;
     return { completed, total, percent: total > 0 ? Math.round((completed / total) * 100) : 0 };
   }, [completedSet]);
 
   const getOverallProgress = useCallback(() => {
-    const total = SECTIONS.reduce((sum, s) => sum + s.subsections.length, 0);
+    const total = SECTIONS.reduce((sum, s) => sum + getAllSubsections(s).length, 0);
     const completed = completedSet.size;
     return { completed, total, percent: total > 0 ? Math.round((completed / total) * 100) : 0 };
   }, [completedSet]);
@@ -119,11 +165,13 @@ export function ProgressProvider({ children }) {
       newBadges,
       loading,
       isSectionUnlocked,
+      isCourseUnlocked,
       isSubsectionUnlocked,
       isSubsectionCompleted,
       completeSubsection,
       clearNewBadges,
       getSectionProgress,
+      getCourseProgress,
       getOverallProgress,
       fetchProgress
     }}>

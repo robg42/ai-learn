@@ -122,6 +122,22 @@ export default function Admin() {
         body: JSON.stringify({ userId: Number(awardUserId), badgeId: Number(awardBadgeId) }),
       });
       if (result.error) throw new Error(result.error);
+      // Update local state so badge appears immediately without a page refresh
+      const awardedBadge = badges.find(b => String(b.id) === String(awardBadgeId));
+      if (awardedBadge) {
+        setUsers(prev => prev.map(u =>
+          String(u.id) === String(awardUserId)
+            ? {
+                ...u,
+                badges: [
+                  // keep existing badges, prevent dupes
+                  ...(u.badges || []).filter(b => b.slug !== awardedBadge.slug),
+                  { ...awardedBadge, awarded_at: new Date().toISOString() },
+                ],
+              }
+            : u
+        ));
+      }
       setAwardSuccess('Badge awarded successfully!');
       setTimeout(() => setAwardSuccess(''), 3000);
     } catch (err) {
@@ -367,6 +383,7 @@ export default function Admin() {
 
           {/* Badge Manager Tab */}
           {activeTab === 'badges' && (
+            <div className="space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Create badge */}
               <div className="card">
@@ -572,6 +589,51 @@ export default function Admin() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Badge Holders */}
+            <div className="card">
+              <h3 className="text-lg font-semibold text-text-primary mb-6 flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                Badge Holders
+              </h3>
+              <div className="space-y-3">
+                {badges.map(badge => {
+                  const Icon = LucideIcons[badge.icon] || LucideIcons.Award;
+                  const holders = users.filter(u => u.badges?.some(b => b.slug === badge.slug));
+                  return (
+                    <div key={badge.id} className="p-3 rounded-lg bg-white/5 border border-white/5">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${badge.color}20` }}>
+                          <Icon className="w-4 h-4" style={{ color: badge.color }} />
+                        </div>
+                        <p className="text-sm font-medium text-text-primary flex-1">{badge.name}</p>
+                        <span className="badge-pill bg-white/10 text-text-muted text-xs">
+                          {holders.length} holder{holders.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      {holders.length === 0 ? (
+                        <p className="text-xs text-text-muted pl-11">No one has this badge yet</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5 pl-11">
+                          {holders.map(u => (
+                            <span
+                              key={u.id}
+                              className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 text-xs text-text-muted"
+                            >
+                              <span className="w-4 h-4 rounded-full bg-primary/40 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+                                {u.name.charAt(0)}
+                              </span>
+                              {u.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
             </div>
           )}
 

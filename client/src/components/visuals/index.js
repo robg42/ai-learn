@@ -6,3 +6,6 @@ export { default as AgentLoopDiagram } from './AgentLoopDiagram';
 export { default as MultiAgentFlow } from './MultiAgentFlow';
 export { default as ThreatModelDiagram } from './ThreatModelDiagram';
 export { default as SecurityVendorMap } from './SecurityVendorMap';
+export { default as TrainingPipeline } from './TrainingPipeline';
+export { default as RLHFDiagram } from './RLHFDiagram';
+export { default as PlanningDiagram } from './PlanningDiagram';

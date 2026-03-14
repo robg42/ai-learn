@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Lock, ChevronRight, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Lock, ChevronRight, ArrowLeft, BookOpen } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { SECTIONS } from '../content/course';
 import SubsectionView from '../components/learn/SubsectionView';
-import { useProgress } from '../context/ProgressContext';
+import { useProgress, getSectionCourses, getAllSubsections } from '../context/ProgressContext';
 import ProgressBar from '../components/learn/ProgressBar';
 
 export default function Learn({ initialTarget }) {
-  const { isSectionUnlocked, isSubsectionCompleted, isSubsectionUnlocked, getSectionProgress } = useProgress();
+  const {
+    isSectionUnlocked, isCourseUnlocked,
+    isSubsectionCompleted, isSubsectionUnlocked,
+    getSectionProgress, getCourseProgress,
+  } = useProgress();
 
   const [activeSectionId, setActiveSectionId] = useState(
     initialTarget?.sectionId || SECTIONS[0].id
@@ -23,8 +27,10 @@ export default function Learn({ initialTarget }) {
   }, [initialTarget]);
 
   const activeSection = SECTIONS.find(s => s.id === activeSectionId) || SECTIONS[0];
+
+  // Find the active subsection across all courses
   const activeSubsection = activeSubsectionId
-    ? activeSection.subsections.find(s => s.id === activeSubsectionId)
+    ? getAllSubsections(activeSection).find(s => s.id === activeSubsectionId)
     : null;
 
   const handleSelectSubsection = (sectionId, subsectionId) => {
@@ -33,19 +39,21 @@ export default function Learn({ initialTarget }) {
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
+  // Navigate to next subsection across all courses (and into next section)
   const getNextSubsection = () => {
     if (!activeSubsectionId) return null;
-    const subs = activeSection.subsections;
-    const idx = subs.findIndex(s => s.id === activeSubsectionId);
-    if (idx < subs.length - 1) {
-      return { section: activeSection, subsection: subs[idx + 1] };
+    const allSubs = getAllSubsections(activeSection);
+    const idx = allSubs.findIndex(s => s.id === activeSubsectionId);
+    if (idx < allSubs.length - 1) {
+      return { section: activeSection, subsection: allSubs[idx + 1] };
     }
-    // Try next section
+    // Try the next section's first subsection
     const sectionIdx = SECTIONS.findIndex(s => s.id === activeSectionId);
     if (sectionIdx < SECTIONS.length - 1) {
       const nextSection = SECTIONS[sectionIdx + 1];
       if (isSectionUnlocked(nextSection.id)) {
-        return { section: nextSection, subsection: nextSection.subsections[0] };
+        const nextSubs = getAllSubsections(nextSection);
+        return { section: nextSection, subsection: nextSubs[0] };
       }
     }
     return null;
@@ -61,6 +69,10 @@ export default function Learn({ initialTarget }) {
   };
 
   const sectionProgress = getSectionProgress(activeSectionId);
+  const courses = getSectionCourses(activeSection);
+
+  // Level labels
+  const levelLabels = { 1: '101', 2: '201', 3: '301', 4: '401' };
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
@@ -70,8 +82,8 @@ export default function Learn({ initialTarget }) {
           sidebarOpen ? 'w-72 min-w-[18rem]' : 'w-0 overflow-hidden'
         } transition-all duration-300 border-r border-white/10 bg-bg-card flex flex-col`}
       >
+        {/* Section tabs */}
         <div className="p-4 border-b border-white/10">
-          {/* Section tabs */}
           <div className="space-y-1">
             {SECTIONS.map(section => {
               const SectionIcon = LucideIcons[section.icon] || LucideIcons.BookOpen;
@@ -82,7 +94,7 @@ export default function Learn({ initialTarget }) {
               return (
                 <button
                   key={section.id}
-                  onClick={() => unlocked && setActiveSectionId(section.id)}
+                  onClick={() => { if (unlocked) { setActiveSectionId(section.id); setActiveSubsectionId(null); } }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
                     isActive
                       ? 'bg-white/10 text-text-primary'
@@ -105,53 +117,77 @@ export default function Learn({ initialTarget }) {
           </div>
         </div>
 
-        {/* Active section progress */}
+        {/* Section progress bar */}
         <div className="px-4 py-3 border-b border-white/10">
-          <ProgressBar
-            percent={sectionProgress.percent}
-            color={activeSection.color}
-            size="sm"
-            showLabel={false}
-          />
-          <p className="text-xs text-text-muted mt-1">
-            {sectionProgress.completed}/{sectionProgress.total} complete
-          </p>
+          <ProgressBar percent={sectionProgress.percent} color={activeSection.color} size="sm" showLabel={false} />
+          <p className="text-xs text-text-muted mt-1">{sectionProgress.completed}/{sectionProgress.total} complete</p>
         </div>
 
-        {/* Subsection list */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-1">
-          {activeSection.subsections.map((sub, idx) => {
-            const completed = isSubsectionCompleted(sub.id);
-            const unlocked = isSubsectionUnlocked(activeSection.id, sub.id);
-            const isActive = sub.id === activeSubsectionId;
+        {/* Course + subsection list */}
+        <div className="flex-1 overflow-y-auto py-3">
+          {courses.map((course, courseIdx) => {
+            const courseUnlocked = isCourseUnlocked(activeSection.id, course.id);
+            const courseProg = getCourseProgress(activeSection.id, course.id);
+            const allDone = courseProg.total > 0 && courseProg.completed === courseProg.total;
 
             return (
-              <button
-                key={sub.id}
-                onClick={() => unlocked && handleSelectSubsection(activeSection.id, sub.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-all duration-200 ${
-                  isActive
-                    ? 'bg-primary/20 text-primary border border-primary/30'
-                    : completed
-                    ? 'text-success hover:bg-white/5 cursor-pointer'
-                    : unlocked
-                    ? 'text-text-muted hover:text-text-primary hover:bg-white/5 cursor-pointer'
-                    : 'text-text-muted/40 cursor-not-allowed'
-                }`}
-              >
-                <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
-                  {completed
-                    ? <CheckCircle className="w-4 h-4 text-success" />
-                    : unlocked
-                    ? <div className="w-2 h-2 rounded-full bg-current opacity-60" />
-                    : <Lock className="w-3 h-3" />
-                  }
+              <div key={course.id} className="mb-1">
+                {/* Course header */}
+                <div className={`flex items-center gap-2 px-4 py-2 ${!courseUnlocked ? 'opacity-40' : ''}`}>
+                  <div
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                    style={{
+                      backgroundColor: courseUnlocked ? `${activeSection.color}20` : 'rgba(255,255,255,0.05)',
+                      color: courseUnlocked ? activeSection.color : '#64748b',
+                    }}
+                  >
+                    {levelLabels[course.level] || `C${courseIdx + 1}`}
+                  </div>
+                  <span className="text-xs font-semibold text-text-muted flex-1 truncate">
+                    {course.title.replace(/^Course \d+: /, '')}
+                  </span>
+                  {courseUnlocked && allDone && <CheckCircle className="w-3.5 h-3.5 text-success flex-shrink-0" />}
+                  {!courseUnlocked && <Lock className="w-3 h-3 text-text-muted/40 flex-shrink-0" />}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="truncate">{sub.title}</div>
-                  <div className="text-xs opacity-70 mt-0.5">{sub.estimatedMinutes} min</div>
+
+                {/* Subsections within course */}
+                <div className="px-2 space-y-0.5">
+                  {course.subsections.map((sub) => {
+                    const completed = isSubsectionCompleted(sub.id);
+                    const unlocked = isSubsectionUnlocked(activeSection.id, sub.id);
+                    const isActive = sub.id === activeSubsectionId;
+
+                    return (
+                      <button
+                        key={sub.id}
+                        onClick={() => unlocked && handleSelectSubsection(activeSection.id, sub.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left transition-all duration-200 ${
+                          isActive
+                            ? 'bg-primary/20 text-primary border border-primary/30'
+                            : completed
+                            ? 'text-success hover:bg-white/5 cursor-pointer'
+                            : unlocked
+                            ? 'text-text-muted hover:text-text-primary hover:bg-white/5 cursor-pointer'
+                            : 'text-text-muted/30 cursor-not-allowed'
+                        }`}
+                      >
+                        <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+                          {completed
+                            ? <CheckCircle className="w-3.5 h-3.5 text-success" />
+                            : unlocked
+                            ? <div className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
+                            : <Lock className="w-3 h-3" />
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="truncate text-xs">{sub.title}</div>
+                          <div className="text-[10px] opacity-60 mt-0.5">{sub.estimatedMinutes} min</div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -159,12 +195,9 @@ export default function Learn({ initialTarget }) {
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
-        {/* Top bar with sidebar toggle */}
+        {/* Top bar */}
         <div className="sticky top-0 z-10 bg-bg-dark/90 backdrop-blur border-b border-white/10 px-6 py-3 flex items-center gap-3">
-          <button
-            onClick={() => setSidebarOpen(v => !v)}
-            className="btn-ghost p-1.5 rounded-lg"
-          >
+          <button onClick={() => setSidebarOpen(v => !v)} className="btn-ghost p-1.5 rounded-lg">
             {sidebarOpen
               ? <ChevronRight className="w-4 h-4 rotate-180" />
               : <ChevronRight className="w-4 h-4" />
@@ -180,7 +213,7 @@ export default function Learn({ initialTarget }) {
                 {activeSection.title}
               </button>
               <ChevronRight className="w-3 h-3 text-text-muted/50" />
-              <span className="text-text-primary">{activeSubsection.title}</span>
+              <span className="text-text-primary truncate max-w-xs">{activeSubsection.title}</span>
             </div>
           )}
         </div>
@@ -193,14 +226,14 @@ export default function Learn({ initialTarget }) {
               onNext={next ? handleNext : null}
             />
           ) : (
-            /* Section overview */
+            /* Section overview — shows courses as cards */
             <div className="max-w-3xl mx-auto">
               <div className="flex items-center gap-4 mb-8">
                 {(() => {
                   const SectionIcon = LucideIcons[activeSection.icon] || LucideIcons.BookOpen;
                   return (
                     <div
-                      className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
                       style={{ backgroundColor: `${activeSection.color}20` }}
                     >
                       <SectionIcon className="w-7 h-7" style={{ color: activeSection.color }} />
@@ -213,44 +246,81 @@ export default function Learn({ initialTarget }) {
                 </div>
               </div>
 
-              <div className="mb-6">
-                <ProgressBar
-                  percent={sectionProgress.percent}
-                  label="Section Progress"
-                  color={activeSection.color}
-                />
+              <div className="mb-8">
+                <ProgressBar percent={sectionProgress.percent} label="Overall Progress" color={activeSection.color} />
               </div>
 
-              <div className="space-y-3">
-                {activeSection.subsections.map((sub, idx) => {
-                  const completed = isSubsectionCompleted(sub.id);
-                  const unlocked = isSubsectionUnlocked(activeSection.id, sub.id);
+              <div className="space-y-4">
+                {courses.map((course, courseIdx) => {
+                  const courseUnlocked = isCourseUnlocked(activeSection.id, course.id);
+                  const courseProg = getCourseProgress(activeSection.id, course.id);
+                  const allDone = courseProg.total > 0 && courseProg.completed === courseProg.total;
+                  // Find first incomplete unlocked subsection to jump into
+                  const firstSub = courseUnlocked
+                    ? course.subsections.find(s => isSubsectionUnlocked(activeSection.id, s.id) && !isSubsectionCompleted(s.id))
+                      || (allDone ? course.subsections[0] : null)
+                    : null;
 
                   return (
                     <div
-                      key={sub.id}
-                      onClick={() => unlocked && handleSelectSubsection(activeSection.id, sub.id)}
-                      className={`card flex items-center gap-4 transition-all duration-200 ${
-                        unlocked
+                      key={course.id}
+                      onClick={() => firstSub && handleSelectSubsection(activeSection.id, firstSub.id)}
+                      className={`card transition-all duration-200 ${
+                        courseUnlocked && firstSub
                           ? 'cursor-pointer hover:border-white/20 hover:-translate-y-0.5'
                           : 'opacity-50 cursor-not-allowed'
-                      } ${completed ? 'border-success/20' : ''}`}
+                      } ${allDone ? 'border-success/20' : ''}`}
                     >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        completed ? 'bg-success/20' : unlocked ? 'bg-white/5' : 'bg-white/5'
-                      }`}>
-                        {completed
-                          ? <CheckCircle className="w-5 h-5 text-success" />
-                          : unlocked
-                          ? <span className="text-sm font-bold text-text-muted">{idx + 1}</span>
-                          : <Lock className="w-4 h-4 text-text-muted/50" />
-                        }
+                      <div className="flex items-start gap-4">
+                        {/* Level badge */}
+                        <div
+                          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-sm"
+                          style={{
+                            backgroundColor: courseUnlocked ? `${activeSection.color}20` : 'rgba(255,255,255,0.05)',
+                            color: courseUnlocked ? activeSection.color : '#64748b',
+                          }}
+                        >
+                          {allDone
+                            ? <CheckCircle className="w-5 h-5 text-success" />
+                            : !courseUnlocked
+                            ? <Lock className="w-4 h-4" />
+                            : <span>{levelLabels[course.level] || courseIdx + 1}</span>
+                          }
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-text-primary">{course.title}</h3>
+                          </div>
+                          <p className="text-sm text-text-muted mb-3">{course.description}</p>
+
+                          {courseUnlocked && (
+                            <div className="space-y-1.5">
+                              <ProgressBar
+                                percent={courseProg.percent}
+                                color={activeSection.color}
+                                size="sm"
+                                showLabel={false}
+                              />
+                              <p className="text-xs text-text-muted">
+                                {courseProg.completed}/{courseProg.total} lessons
+                                {' · '}
+                                {course.subsections.reduce((t, s) => t + s.estimatedMinutes, 0)} min total
+                              </p>
+                            </div>
+                          )}
+
+                          {!courseUnlocked && (
+                            <p className="text-xs text-text-muted/60">
+                              Complete {courses[courseIdx - 1]?.title || 'previous course'} to unlock
+                            </p>
+                          )}
+                        </div>
+
+                        {courseUnlocked && firstSub && (
+                          <ChevronRight className="w-5 h-5 text-text-muted flex-shrink-0 mt-1" />
+                        )}
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium text-text-primary">{sub.title}</h3>
-                        <p className="text-sm text-text-muted">{sub.estimatedMinutes} min · {sub.quiz.length} questions</p>
-                      </div>
-                      {unlocked && <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0" />}
                     </div>
                   );
                 })}

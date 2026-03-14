@@ -14,7 +14,9 @@ async function initDb() {
         password_hash TEXT,
         name TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'user',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_login_at DATETIME,
+        login_count INTEGER DEFAULT 0
       )`,
       args: []
     },
@@ -125,6 +127,14 @@ async function initDb() {
             VALUES (?, ?, ?, ?, ?, ?)`,
       args: [badge.slug, badge.name, badge.description, badge.icon, badge.color, badge.type]
     });
+  }
+
+  // Migrate: add login tracking columns if not already present
+  for (const migration of [
+    `ALTER TABLE users ADD COLUMN last_login_at DATETIME`,
+    `ALTER TABLE users ADD COLUMN login_count INTEGER DEFAULT 0`,
+  ]) {
+    try { await db.execute({ sql: migration, args: [] }); } catch (_) { /* already exists */ }
   }
 }
 

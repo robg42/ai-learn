@@ -47,7 +47,7 @@ router.post('/users', async (req, res) => {
 router.get('/users', async (req, res) => {
   try {
     const usersResult = await db.execute({
-      sql: 'SELECT id, email, name, role, created_at FROM users ORDER BY created_at DESC',
+      sql: 'SELECT id, email, name, role, created_at, last_login_at, login_count FROM users ORDER BY created_at DESC',
       args: []
     });
 

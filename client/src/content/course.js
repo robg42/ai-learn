@@ -129,13 +129,13 @@ Transformers use positional encodings to preserve order information, since self-
         visual: 'ProviderComparison',
         content: `The frontier LLM landscape is dominated by a small number of well-resourced organisations, each taking somewhat different approaches to capability, safety, and deployment.
 
-Anthropic builds the Claude family of models, emphasising Constitutional AI and safety research. Claude models are available via the Anthropic API and are designed with helpfulness, harmlessness, and honesty as core objectives. The Claude 3 and Claude 4 series include models at different capability/cost tiers: Haiku for fast, cheap tasks; Sonnet for balanced performance; Opus for maximum capability.
+Anthropic builds the Claude family of models, emphasising Constitutional AI and safety research. The Claude 4 generation (2025-2026) is the current lineup: Haiku for fast, lightweight tasks; Sonnet for balanced performance; and Opus for maximum capability. Claude Opus 4.6 and Sonnet 4.6, released in February 2026, are the most capable models to date — featuring a 1M-token context window and leading benchmarks for coding and agentic tasks.
 
 OpenAI produces the GPT-5 model family and operates ChatGPT as a consumer product. As of early 2026, the lineup spans from GPT-5 (launched mid-2025) through GPT-5.4, their most capable frontier model, which excels at professional knowledge work, agentic coding, and complex reasoning. GPT-5.3 Instant serves as the fast default for everyday tasks, while GPT-5.4 Pro targets demanding professional use cases.
 
-Google DeepMind develops the Gemini family, integrated into Google Cloud (Vertex AI) and consumer products. Gemini models have exceptionally large context windows and strong multimodal capabilities.
+Google DeepMind develops the Gemini family. The current generation is Gemini 3.1 (March 2026), with Pro and Flash variants available through Google Cloud (Vertex AI) and Google AI Studio. Gemini models are natively multimodal, support extremely large context windows, and are deeply integrated into Google Workspace and Search.
 
-Meta releases Llama models as open weights, allowing download and local deployment. This has spawned a large ecosystem of fine-tunes and derivative models. Other notable open-weight providers include Mistral AI and the Allen Institute.
+Meta releases Llama models as open weights. Llama 4 (April 2025) introduced Scout, Maverick, and the massive Behemoth variants using Mixture-of-Experts (MoE) architecture with native multimodal support. Scout and Maverick are publicly available on Hugging Face and llama.com, spawning a large ecosystem of fine-tunes. Other notable open-weight providers include Mistral AI and DeepSeek.
 
 Choosing a provider involves evaluating benchmark performance, pricing, context window, latency, data privacy terms, and geographic availability. No single provider dominates on all dimensions.`,
         quiz: [

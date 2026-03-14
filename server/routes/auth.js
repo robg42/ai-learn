@@ -81,6 +81,13 @@ router.post('/magic-verify', async (req, res) => {
     const user = userResult.rows[0] ? { ...userResult.rows[0] } : null;
     if (!user) return res.status(400).json({ error: 'User not found' });
 
+    // Record login stats
+    await db.execute({
+      sql: `UPDATE users SET last_login_at = CURRENT_TIMESTAMP, login_count = COALESCE(login_count, 0) + 1 WHERE id = ?`,
+      args: [user.id]
+    });
+
+
     const sessionToken = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       JWT_SECRET,

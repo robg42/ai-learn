@@ -156,7 +156,7 @@ export default function Admin() {
         body: JSON.stringify({ email: newEmail, name: newName, role: newRole }),
       });
       if (result.error) throw new Error(result.error);
-      setUsers(prev => [{ ...result, badges: [], progressSummary: {}, totalCompleted: 0, lastActive: null }, ...prev]);
+      setUsers(prev => [{ ...result, badges: [], progressSummary: {}, totalCompleted: 0, last_login_at: null, login_count: 0 }, ...prev]);
       setAddUserSuccess(`Account created for ${result.name}`);
       setNewEmail('');
       setNewName('');
@@ -291,7 +291,7 @@ export default function Admin() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-white/10">
-                        {['Name', 'Email', 'LLM', 'Agentic', 'Security', 'Badges', 'Last Active'].map(h => (
+                        {['Name', 'Email', 'LLM', 'Agentic', 'Security', 'Badges', 'Last Login', 'Logins'].map(h => (
                           <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">
                             {h}
                           </th>
@@ -342,14 +342,37 @@ export default function Admin() {
                               </span>
                             </td>
                             <td className="px-4 py-3 text-sm text-text-muted">
-                              {u.lastActive
-                                ? new Date(u.lastActive).toLocaleDateString()
+                              {u.last_login_at
+                                ? new Date(u.last_login_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
                                 : 'Never'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="badge-pill bg-primary/20 text-primary text-xs">
+                                {u.login_count || 0}
+                              </span>
                             </td>
                           </tr>
                           {expandedUser === u.id && (
                             <tr className="bg-white/5 border-b border-white/10">
-                              <td colSpan={7} className="px-6 py-4">
+                              <td colSpan={9} className="px-6 py-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4 text-sm">
+                                  <div>
+                                    <p className="text-text-muted text-xs mb-1">Member Since</p>
+                                    <p className="text-text-primary font-medium">{u.created_at ? new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-text-muted text-xs mb-1">Last Login</p>
+                                    <p className="text-text-primary font-medium">{u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-text-muted text-xs mb-1">Total Logins</p>
+                                    <p className="text-text-primary font-medium">{u.login_count || 0}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-text-muted text-xs mb-1">Lessons Complete</p>
+                                    <p className="text-text-primary font-medium">{u.totalCompleted || 0}</p>
+                                  </div>
+                                </div>
                                 <div className="flex flex-wrap gap-2">
                                   <strong className="text-sm text-text-muted w-full mb-1">Badges:</strong>
                                   {u.badges?.length === 0

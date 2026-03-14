@@ -3,33 +3,43 @@ import * as LucideIcons from 'lucide-react';
 
 export default function BadgeCard({ badge, size = 'md', showDetails = true, animate = false }) {
   const Icon = LucideIcons[badge.icon] || LucideIcons.Award;
-  const sizes = {
-    sm: { card: 'p-3', icon: 'w-8 h-8', iconInner: 'w-4 h-4', text: 'text-xs' },
-    md: { card: 'p-4', icon: 'w-12 h-12', iconInner: 'w-6 h-6', text: 'text-sm' },
-    lg: { card: 'p-5', icon: 'w-16 h-16', iconInner: 'w-8 h-8', text: 'text-base' },
-  };
-  const s = sizes[size];
 
+  if (size === 'sm') {
+    return (
+      <div
+        className={`card flex items-center gap-3 p-3 ${animate ? 'animate-badge-earn animate-glow-pulse' : ''}`}
+        style={{ borderColor: `${badge.color}30` }}
+      >
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `${badge.color}20` }}
+        >
+          <Icon className="w-4 h-4" style={{ color: badge.color }} />
+        </div>
+        {showDetails && (
+          <p className="text-xs font-semibold text-text-primary truncate">{badge.name}</p>
+        )}
+      </div>
+    );
+  }
+
+  // md / lg — horizontal card layout: icon left, name + description right
   return (
     <div
-      className={`card flex flex-col items-center text-center ${s.card} ${
-        animate ? 'animate-badge-earn animate-glow-pulse' : ''
-      }`}
+      className={`card flex items-start gap-4 p-4 ${animate ? 'animate-badge-earn animate-glow-pulse' : ''}`}
       style={{ borderColor: `${badge.color}30` }}
     >
       <div
-        className={`${s.icon} rounded-full flex items-center justify-center mb-2`}
+        className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
         style={{ backgroundColor: `${badge.color}20` }}
       >
-        <Icon className={s.iconInner} style={{ color: badge.color }} />
+        <Icon className="w-5 h-5" style={{ color: badge.color }} />
       </div>
       {showDetails && (
-        <>
-          <p className={`font-semibold text-text-primary ${s.text}`}>{badge.name}</p>
-          {size !== 'sm' && (
-            <p className="text-xs text-text-muted mt-1 line-clamp-2">{badge.description}</p>
-          )}
-        </>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-text-primary text-sm leading-snug">{badge.name}</p>
+          <p className="text-xs text-text-muted mt-1 leading-relaxed">{badge.description}</p>
+        </div>
       )}
     </div>
   );

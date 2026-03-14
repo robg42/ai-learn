@@ -56,6 +56,8 @@ export default function Admin() {
   const [addUserError, setAddUserError] = useState('');
   const [addingUser, setAddingUser] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   // Award state
   const [awardUserId, setAwardUserId] = useState('');
@@ -63,6 +65,24 @@ export default function Admin() {
   const [awardSearch, setAwardSearch] = useState('');
   const [awardSuccess, setAwardSuccess] = useState('');
   const [awardError, setAwardError] = useState('');
+
+  const deleteUser = async (userId) => {
+    setDeletingUserId(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setConfirmDeleteId(null);
+      setExpandedUser(null);
+    } catch (err) {
+      alert(err.message || 'Failed to delete user');
+    }
+    setDeletingUserId(null);
+  };
 
   const api = async (path, options = {}) => {
     const res = await fetch(`/api/admin${path}`, {
@@ -391,6 +411,31 @@ export default function Admin() {
                                       );
                                     })
                                   }
+                                </div>
+                                {/* Delete user */}
+                                <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+                                  {confirmDeleteId === u.id ? (
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-sm text-error font-medium">Delete {u.name}? This cannot be undone.</span>
+                                      <button
+                                        onClick={() => deleteUser(u.id)}
+                                        disabled={deletingUserId === u.id}
+                                        className="px-3 py-1.5 rounded-lg bg-error text-white text-xs font-semibold hover:bg-error/80 transition-colors disabled:opacity-50"
+                                      >
+                                        {deletingUserId === u.id ? 'Deleting...' : 'Yes, delete'}
+                                      </button>
+                                      <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-text-muted hover:text-text-primary">
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => setConfirmDeleteId(u.id)}
+                                      className="flex items-center gap-1.5 text-xs text-error/70 hover:text-error transition-colors"
+                                    >
+                                      Delete user
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>

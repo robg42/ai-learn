@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Clock, CheckCircle, Lock, ChevronRight } from 'lucide-react';
+import { Clock, CheckCircle, Lock, ChevronRight, Trophy } from 'lucide-react';
 import KnowledgeCheck from './KnowledgeCheck';
 import { useProgress } from '../../context/ProgressContext';
 import * as Visuals from '../visuals';
 
-export default function SubsectionView({ section, subsection, onNext }) {
+export default function SubsectionView({ section, subsection, onNext, onBackToOverview }) {
   const { isSubsectionCompleted, isSubsectionUnlocked, completeSubsection } = useProgress();
   const [quizPassed, setQuizPassed] = useState(false);
 
@@ -26,11 +26,13 @@ export default function SubsectionView({ section, subsection, onNext }) {
         </div>
         <h3 className="text-xl font-semibold text-text-primary mb-2">Locked</h3>
         <p className="text-text-muted max-w-sm">
-          Complete the previous subsection to unlock this content.
+          Complete the previous course to unlock this content.
         </p>
       </div>
     );
   }
+
+  const showCompletion = isCompleted || quizPassed;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -72,26 +74,42 @@ export default function SubsectionView({ section, subsection, onNext }) {
         </div>
       )}
 
-      {/* Knowledge Check */}
-      {!isCompleted && !quizPassed && (
+      {/* Knowledge Check — shown when not yet complete */}
+      {!showCompletion && subsection.quiz?.length > 0 && (
         <div className="mt-8 pt-8 border-t border-white/10">
           <KnowledgeCheck quiz={subsection.quiz} onPass={handlePass} />
         </div>
       )}
 
-      {(isCompleted || quizPassed) && (
+      {/* Completion bar — always shown once done, with Next or Course Overview fallback */}
+      {showCompletion && (
         <div className="mt-8 pt-8 border-t border-white/10">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-2 text-success">
-              <CheckCircle className="w-5 h-5 animate-check-pulse" />
-              <span className="font-semibold">Subsection complete!</span>
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-semibold">Lesson complete!</span>
             </div>
-            {onNext && (
-              <button onClick={onNext} className="btn-primary flex items-center gap-2">
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {onNext ? (
+                <button onClick={onNext} className="btn-primary flex items-center gap-2">
+                  Next lesson
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5 text-warning text-sm mr-2">
+                    <Trophy className="w-4 h-4" />
+                    <span>All lessons done!</span>
+                  </div>
+                  {onBackToOverview && (
+                    <button onClick={onBackToOverview} className="btn-secondary flex items-center gap-2">
+                      Course overview
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

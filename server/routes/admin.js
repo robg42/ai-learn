@@ -196,6 +196,27 @@ router.post('/badges/award', async (req, res) => {
   }
 });
 
+// DELETE /api/admin/users/:id
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (parseInt(id) === req.user.id) return res.status(400).json({ error: 'You cannot delete your own account' });
+    const userResult = await db.execute({ sql: 'SELECT id FROM users WHERE id = ?', args: [id] });
+    if (!userResult.rows[0]) return res.status(404).json({ error: 'User not found' });
+    await db.batch([
+      { sql: 'DELETE FROM progress WHERE user_id = ?', args: [id] },
+      { sql: 'DELETE FROM badge_awards WHERE user_id = ?', args: [id] },
+      { sql: 'DELETE FROM magic_link_tokens WHERE user_id = ?', args: [id] },
+      { sql: 'DELETE FROM password_reset_tokens WHERE user_id = ?', args: [id] },
+      { sql: 'DELETE FROM users WHERE id = ?', args: [id] },
+    ], 'write');
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /admin/users/:id error:', err);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
 // GET /api/admin/analytics
 router.get('/analytics', async (req, res) => {
   try {

@@ -76,23 +76,21 @@ export function ProgressProvider({ children }) {
     return prevCourse.subsections.every(s => completedSet.has(s.id));
   }, [isSectionUnlocked, completedSet]);
 
+  // A subsection is unlocked when its COURSE is unlocked.
+  // We intentionally do NOT require previous subsections to be complete —
+  // users can read any lesson in an unlocked course freely; the quiz gates completion.
   const isSubsectionUnlocked = useCallback((sectionId, subsectionId) => {
     if (!isSectionUnlocked(sectionId)) return false;
     const section = SECTIONS.find(s => s.id === sectionId);
     if (!section) return false;
     const courses = getSectionCourses(section);
-    for (let ci = 0; ci < courses.length; ci++) {
-      const course = courses[ci];
-      const idx = course.subsections.findIndex(s => s.id === subsectionId);
-      if (idx === -1) continue;
-      // Course must be unlocked first
-      if (!isCourseUnlocked(sectionId, course.id)) return false;
-      // First subsection of course: unlocked when course is unlocked
-      if (idx === 0) return true;
-      return completedSet.has(course.subsections[idx - 1].id);
+    for (const course of courses) {
+      if (course.subsections.some(s => s.id === subsectionId)) {
+        return isCourseUnlocked(sectionId, course.id);
+      }
     }
     return false;
-  }, [isSectionUnlocked, isCourseUnlocked, completedSet]);
+  }, [isSectionUnlocked, isCourseUnlocked]);
 
   const isSubsectionCompleted = useCallback((subsectionId) => {
     return completedSet.has(subsectionId);

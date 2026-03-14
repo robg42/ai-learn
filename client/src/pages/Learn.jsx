@@ -224,6 +224,7 @@ export default function Learn({ initialTarget }) {
               section={activeSection}
               subsection={activeSubsection}
               onNext={next ? handleNext : null}
+              onBackToOverview={() => setActiveSubsectionId(null)}
             />
           ) : (
             /* Section overview — shows courses as cards */

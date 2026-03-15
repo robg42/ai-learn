@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, Award, BarChart2, BookOpen, Search, Plus,
-  CheckCircle, RefreshCw, X, ChevronDown, ChevronUp
+  CheckCircle, RefreshCw, X, ChevronDown, ChevronUp, Trophy, Medal, TrendingUp
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import {
@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
+  { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
   { id: 'badges', label: 'Badge Manager', icon: Award },
   { id: 'analytics', label: 'Analytics', icon: BarChart2 },
   { id: 'content', label: 'Content', icon: BookOpen },
@@ -448,6 +449,224 @@ export default function Admin() {
               </div>
             </div>
           )}
+
+          {/* Leaderboard Tab */}
+          {activeTab === 'leaderboard' && (() => {
+            // Compute sorted rankings from users data
+            const byLessons = [...users].sort((a, b) => (b.totalCompleted || 0) - (a.totalCompleted || 0));
+            const byBadges = [...users].sort((a, b) => (b.badges?.length || 0) - (a.badges?.length || 0));
+            const byLogins = [...users].sort((a, b) => (b.login_count || 0) - (a.login_count || 0));
+            const byRecent = [...users]
+              .filter(u => u.last_login_at)
+              .sort((a, b) => new Date(b.last_login_at) - new Date(a.last_login_at));
+
+            const rankMedal = (i) => {
+              if (i === 0) return { icon: '🥇', color: '#F59E0B' };
+              if (i === 1) return { icon: '🥈', color: '#94A3B8' };
+              if (i === 2) return { icon: '🥉', color: '#CD7F32' };
+              return { icon: `${i + 1}`, color: '#64748B' };
+            };
+
+            const RankTable = ({ title, icon: Icon, color, rows, valueLabel, getValue }) => (
+              <div className="card">
+                <h3 className="text-base font-semibold text-text-primary mb-4 flex items-center gap-2">
+                  <Icon className="w-4 h-4" style={{ color }} />
+                  {title}
+                </h3>
+                <div className="space-y-1">
+                  {rows.length === 0 && (
+                    <p className="text-text-muted text-sm py-4 text-center">No data yet</p>
+                  )}
+                  {rows.slice(0, 10).map((u, i) => {
+                    const medal = rankMedal(i);
+                    const val = getValue(u);
+                    const maxVal = getValue(rows[0]) || 1;
+                    return (
+                      <div key={u.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${i < 3 ? 'bg-white/5' : ''}`}>
+                        <span className="w-7 text-center text-sm font-bold flex-shrink-0" style={{ color: medal.color }}>
+                          {medal.icon}
+                        </span>
+                        <div className="w-7 h-7 rounded-full bg-primary/30 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                          {u.name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-text-primary truncate">{u.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <div className="h-1 rounded-full bg-white/10 flex-1 overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all"
+                                style={{ width: `${(val / maxVal) * 100}%`, backgroundColor: color }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold flex-shrink-0" style={{ color }}>
+                          {val} <span className="text-text-muted text-xs font-normal">{valueLabel}</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+
+            // Top-level stat cards
+            const topLessons = byLessons[0];
+            const topBadges = byBadges[0];
+            const topLogins = byLogins[0];
+
+            return (
+              <div className="space-y-6">
+                {/* Top performers summary cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Most Lessons', user: topLessons, value: topLessons?.totalCompleted || 0, suffix: 'lessons', color: '#6B46C1' },
+                    { label: 'Most Badges', user: topBadges, value: topBadges?.badges?.length || 0, suffix: 'badges', color: '#F59E0B' },
+                    { label: 'Most Active', user: topLogins, value: topLogins?.login_count || 0, suffix: 'logins', color: '#38BDF8' },
+                  ].map(stat => (
+                    <div key={stat.label} className="card text-center">
+                      <p className="text-xs text-text-muted uppercase tracking-wide mb-2">{stat.label}</p>
+                      {stat.user ? (
+                        <>
+                          <div
+                            className="w-12 h-12 rounded-full mx-auto flex items-center justify-center text-lg font-bold text-white mb-2"
+                            style={{ backgroundColor: stat.color }}
+                          >
+                            {stat.user.name.charAt(0)}
+                          </div>
+                          <p className="font-semibold text-text-primary text-sm">{stat.user.name}</p>
+                          <p className="text-2xl font-bold mt-1" style={{ color: stat.color }}>{stat.value}</p>
+                          <p className="text-text-muted text-xs">{stat.suffix}</p>
+                        </>
+                      ) : (
+                        <p className="text-text-muted text-sm py-4">No data yet</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Ranking tables — 2 column grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <RankTable
+                    title="Lessons Completed"
+                    icon={BookOpen}
+                    color="#6B46C1"
+                    rows={byLessons}
+                    valueLabel="lessons"
+                    getValue={u => u.totalCompleted || 0}
+                  />
+                  <RankTable
+                    title="Badges Earned"
+                    icon={Trophy}
+                    color="#F59E0B"
+                    rows={byBadges}
+                    valueLabel="badges"
+                    getValue={u => u.badges?.length || 0}
+                  />
+                  <RankTable
+                    title="Total Logins"
+                    icon={TrendingUp}
+                    color="#38BDF8"
+                    rows={byLogins}
+                    valueLabel="logins"
+                    getValue={u => u.login_count || 0}
+                  />
+                  {/* Recently active — custom table (non-numeric values) */}
+                  <div className="card">
+                    <h3 className="text-base font-semibold text-text-primary mb-4 flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 text-success" />
+                      Recently Active
+                    </h3>
+                    <div className="space-y-1">
+                      {byRecent.length === 0 && (
+                        <p className="text-text-muted text-sm py-4 text-center">No data yet</p>
+                      )}
+                      {byRecent.slice(0, 10).map((u, i) => {
+                        const medal = rankMedal(i);
+                        return (
+                          <div key={u.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${i < 3 ? 'bg-white/5' : ''}`}>
+                            <span className="w-7 text-center text-sm font-bold flex-shrink-0" style={{ color: medal.color }}>
+                              {medal.icon}
+                            </span>
+                            <div className="w-7 h-7 rounded-full bg-success/30 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                              {u.name.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-text-primary truncate">{u.name}</p>
+                              <p className="text-xs text-text-muted truncate">{u.email}</p>
+                            </div>
+                            <span className="text-sm font-semibold text-success flex-shrink-0">
+                              {new Date(u.last_login_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Full combined table */}
+                <div className="card overflow-hidden p-0">
+                  <div className="px-4 py-3 border-b border-white/10">
+                    <h3 className="text-base font-semibold text-text-primary flex items-center gap-2">
+                      <Medal className="w-4 h-4 text-warning" />
+                      Full Rankings
+                    </h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-white/10">
+                          {['Rank', 'User', 'Lessons', 'Badges', 'Logins', 'Last Active'].map(h => (
+                            <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {byLessons.map((u, i) => {
+                          const medal = rankMedal(i);
+                          return (
+                            <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                              <td className="px-4 py-3">
+                                <span className="text-sm font-bold" style={{ color: medal.color }}>{medal.icon}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-7 h-7 rounded-full bg-primary/30 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                                    {u.name.charAt(0)}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-text-primary">{u.name}</p>
+                                    <p className="text-xs text-text-muted">{u.email}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-sm font-semibold text-primary">{u.totalCompleted || 0}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="badge-pill bg-warning/20 text-warning text-xs">{u.badges?.length || 0}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="badge-pill bg-primary/20 text-primary text-xs">{u.login_count || 0}</span>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-text-muted">
+                                {u.last_login_at
+                                  ? new Date(u.last_login_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                                  : 'Never'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Badge Manager Tab */}
           {activeTab === 'badges' && (

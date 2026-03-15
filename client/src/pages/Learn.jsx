@@ -39,21 +39,26 @@ export default function Learn({ initialTarget }) {
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
-  // Navigate to next subsection across all courses (and into next section)
+  // Navigate to the next UNLOCKED subsection across all courses (and into next section).
+  // Skip any that are still locked so we never land on a lock-screen.
   const getNextSubsection = () => {
     if (!activeSubsectionId) return null;
     const allSubs = getAllSubsections(activeSection);
     const idx = allSubs.findIndex(s => s.id === activeSubsectionId);
-    if (idx < allSubs.length - 1) {
-      return { section: activeSection, subsection: allSubs[idx + 1] };
+    // Scan forward through remaining lessons in this section
+    for (let i = idx + 1; i < allSubs.length; i++) {
+      if (isSubsectionUnlocked(activeSection.id, allSubs[i].id)) {
+        return { section: activeSection, subsection: allSubs[i] };
+      }
     }
-    // Try the next section's first subsection
+    // Try the next section's first unlocked subsection
     const sectionIdx = SECTIONS.findIndex(s => s.id === activeSectionId);
     if (sectionIdx < SECTIONS.length - 1) {
       const nextSection = SECTIONS[sectionIdx + 1];
       if (isSectionUnlocked(nextSection.id)) {
         const nextSubs = getAllSubsections(nextSection);
-        return { section: nextSection, subsection: nextSubs[0] };
+        const firstUnlocked = nextSubs.find(s => isSubsectionUnlocked(nextSection.id, s.id));
+        if (firstUnlocked) return { section: nextSection, subsection: firstUnlocked };
       }
     }
     return null;

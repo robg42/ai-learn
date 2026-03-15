@@ -78,7 +78,11 @@ export function ProgressProvider({ children }) {
 
   // Sequential unlocking: within each course, lesson N unlocks only when lesson N-1 is complete.
   // The first lesson of each course unlocks when the course itself unlocks.
+  // IMPORTANT: if a lesson is already in completedSet it is ALWAYS accessible regardless of
+  // whether earlier lessons are present in the DB (guards against inconsistent data edge cases).
   const isSubsectionUnlocked = useCallback((sectionId, subsectionId) => {
+    // Already completed → always accessible (prevents lock-screen on previously-done lessons)
+    if (completedSet.has(subsectionId)) return true;
     if (!isSectionUnlocked(sectionId)) return false;
     const section = SECTIONS.find(s => s.id === sectionId);
     if (!section) return false;

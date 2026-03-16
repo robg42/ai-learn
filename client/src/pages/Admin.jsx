@@ -59,6 +59,7 @@ export default function Admin() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [changingRoleId, setChangingRoleId] = useState(null);
 
   // Award state
   const [awardUserId, setAwardUserId] = useState('');
@@ -66,6 +67,23 @@ export default function Admin() {
   const [awardSearch, setAwardSearch] = useState('');
   const [awardSuccess, setAwardSuccess] = useState('');
   const [awardError, setAwardError] = useState('');
+
+  const changeRole = async (userId, newRole) => {
+    setChangingRoleId(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role: newRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    } catch (err) {
+      alert(err.message || 'Failed to update role');
+    }
+    setChangingRoleId(null);
+  };
 
   const deleteUser = async (userId) => {
     setDeletingUserId(userId);
@@ -413,8 +431,32 @@ export default function Admin() {
                                     })
                                   }
                                 </div>
-                                {/* Delete user */}
-                                <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+                                {/* Role + Delete actions */}
+                                <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between flex-wrap gap-3">
+                                  {/* Role toggle */}
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs text-text-muted">Role:</span>
+                                    <span className={`badge-pill text-xs ${u.role === 'admin' ? 'bg-primary/20 text-primary' : 'bg-white/10 text-text-muted'}`}>
+                                      {u.role}
+                                    </span>
+                                    <button
+                                      onClick={() => changeRole(u.id, u.role === 'admin' ? 'user' : 'admin')}
+                                      disabled={changingRoleId === u.id}
+                                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
+                                        u.role === 'admin'
+                                          ? 'bg-white/10 text-text-muted hover:bg-white/20'
+                                          : 'bg-primary/20 text-primary hover:bg-primary/30'
+                                      }`}
+                                    >
+                                      {changingRoleId === u.id
+                                        ? 'Saving...'
+                                        : u.role === 'admin'
+                                        ? 'Remove admin'
+                                        : 'Make admin'}
+                                    </button>
+                                  </div>
+
+                                  {/* Delete */}
                                   {confirmDeleteId === u.id ? (
                                     <div className="flex items-center gap-3">
                                       <span className="text-sm text-error font-medium">Delete {u.name}? This cannot be undone.</span>

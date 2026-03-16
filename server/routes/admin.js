@@ -196,6 +196,27 @@ router.post('/badges/award', async (req, res) => {
   }
 });
 
+// PATCH /api/admin/users/:id/role — promote to admin or demote to user
+router.patch('/users/:id/role', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'role must be "user" or "admin"' });
+    }
+    if (parseInt(id) === req.user.id) {
+      return res.status(400).json({ error: 'You cannot change your own role' });
+    }
+    const userResult = await db.execute({ sql: 'SELECT id FROM users WHERE id = ?', args: [id] });
+    if (!userResult.rows[0]) return res.status(404).json({ error: 'User not found' });
+    await db.execute({ sql: 'UPDATE users SET role = ? WHERE id = ?', args: [role, id] });
+    res.json({ ok: true, role });
+  } catch (err) {
+    console.error('PATCH /admin/users/:id/role error:', err);
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
 // DELETE /api/admin/users/:id
 router.delete('/users/:id', async (req, res) => {
   try {

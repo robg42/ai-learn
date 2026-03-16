@@ -129,10 +129,20 @@ async function initDb() {
     });
   }
 
-  // Migrate: add login tracking columns if not already present
+  // Migrate: add columns and tables that may not exist in older deployments
   for (const migration of [
     `ALTER TABLE users ADD COLUMN last_login_at DATETIME`,
     `ALTER TABLE users ADD COLUMN login_count INTEGER DEFAULT 0`,
+    `ALTER TABLE users ADD COLUMN show_on_leaderboard INTEGER DEFAULT 1`,
+    `ALTER TABLE users ADD COLUMN can_view_leaderboard INTEGER DEFAULT 1`,
+    `CREATE TABLE IF NOT EXISTS notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER REFERENCES users(id),
+      subsection_id TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, subsection_id)
+    )`,
   ]) {
     try { await db.execute({ sql: migration, args: [] }); } catch (_) { /* already exists */ }
   }

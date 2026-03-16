@@ -73,6 +73,20 @@ const BADGE_TRIGGERS = {
   'overachiever':    (c) => ALL_SUBSECTIONS.every(id => c.has(id)),
 };
 
+// GET /api/badges — public list of all badge definitions (for catalog)
+router.get('/', async (req, res) => {
+  try {
+    const result = await db.execute({
+      sql: 'SELECT id, slug, name, description, icon, color, type FROM badge_definitions ORDER BY type, name',
+      args: []
+    });
+    res.json(result.rows.map(r => ({ ...r })));
+  } catch (err) {
+    console.error('GET /badges error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // POST /api/badges/auto-check
 router.post('/auto-check', authMiddleware, async (req, res) => {
   try {

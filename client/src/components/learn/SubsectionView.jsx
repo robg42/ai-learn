@@ -1,11 +1,73 @@
-import React, { useState } from 'react';
-import { Clock, CheckCircle, Lock, ChevronRight, Trophy, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Clock, CheckCircle, Lock, ChevronRight, Trophy, RefreshCw, FileText, Save } from 'lucide-react';
 import KnowledgeCheck from './KnowledgeCheck';
 import { useProgress } from '../../context/ProgressContext';
+import { useAuth } from '../../context/AuthContext';
 import * as Visuals from '../visuals';
+
+function LessonNotes({ subsectionId, token }) {
+  const [content, setContent] = useState('');
+  const [savedContent, setSavedContent] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(''); // '', 'saving', 'saved'
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`/api/notes/${subsectionId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(data => { setContent(data.content || ''); setSavedContent(data.content || ''); })
+      .catch(() => {});
+  }, [subsectionId, token]);
+
+  const save = useCallback(async (text) => {
+    if (!token) return;
+    setSaveStatus('saving');
+    try {
+      await fetch(`/api/notes/${subsectionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ content: text }),
+      });
+      setSavedContent(text);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus(''), 2000);
+    } catch { setSaveStatus(''); }
+  }, [subsectionId, token]);
+
+  const handleChange = (e) => {
+    setContent(e.target.value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => save(e.target.value), 800);
+  };
+
+  const isDirty = content !== savedContent;
+
+  return (
+    <div className="mt-8 pt-8 border-t border-white/10">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+          <FileText className="w-4 h-4 text-accent" />
+          My Notes
+        </h3>
+        {saveStatus === 'saving' && <span className="text-xs text-text-muted">Saving…</span>}
+        {saveStatus === 'saved' && <span className="text-xs text-success flex items-center gap-1"><Save className="w-3 h-3" />Saved</span>}
+      </div>
+      <textarea
+        className="w-full h-28 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-none focus:outline-none focus:border-primary/50 transition-colors"
+        placeholder="Add your own notes for this lesson…"
+        value={content}
+        onChange={handleChange}
+      />
+    </div>
+  );
+}
 
 export default function SubsectionView({ section, subsection, onNext, onBackToOverview }) {
   const { isSubsectionCompleted, isSubsectionUnlocked, completeSubsection } = useProgress();
+  const { token } = useAuth();
   const [quizPassed, setQuizPassed] = useState(false);
   const [retaking, setRetaking] = useState(false);
 
@@ -140,6 +202,9 @@ export default function SubsectionView({ section, subsection, onNext, onBackToOv
           </div>
         </div>
       )}
+
+      {/* Per-lesson notes */}
+      <LessonNotes subsectionId={subsection.id} token={token} />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Learn from './pages/Learn';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
+import Leaderboard from './pages/Leaderboard';
 import BadgeModal from './components/badges/BadgeModal';
 
 function NamePrompt() {
@@ -110,6 +111,7 @@ function AppContent() {
             <Learn initialTarget={learnTarget} />
           )}
           {currentPage === 'profile' && <Profile />}
+          {currentPage === 'leaderboard' && <Leaderboard />}
           {currentPage === 'admin' && user.role === 'admin' && <Admin />}
         </main>
 

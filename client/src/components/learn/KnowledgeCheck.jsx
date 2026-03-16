@@ -1,7 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CheckCircle, XCircle, RefreshCw, Trophy } from 'lucide-react';
 
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export default function KnowledgeCheck({ quiz, onPass }) {
+  const shuffledQuiz = useMemo(() => {
+    return quiz.map(q => {
+      const optionObjects = q.options.map((text, originalIdx) => ({
+        text,
+        isCorrect: q.correct.includes(originalIdx),
+      }));
+      const shuffledOptions = shuffle(optionObjects);
+      const newCorrect = shuffledOptions
+        .map((o, newIdx) => (o.isCorrect ? newIdx : -1))
+        .filter(i => i !== -1);
+      return { ...q, options: shuffledOptions.map(o => o.text), correct: newCorrect };
+    });
+  }, [quiz]);
+
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [results, setResults] = useState(null);
@@ -24,7 +47,7 @@ export default function KnowledgeCheck({ quiz, onPass }) {
 
   const handleSubmit = () => {
     if (!submitted) {
-      const qResults = quiz.map(q => {
+      const qResults = shuffledQuiz.map(q => {
         const selected = answers[q.id] || [];
         const correct = q.correct;
         const isCorrect =
@@ -32,19 +55,13 @@ export default function KnowledgeCheck({ quiz, onPass }) {
           correct.every(c => selected.includes(c));
         return { id: q.id, isCorrect, selected };
       });
-
-      const score = Math.round((qResults.filter(r => r.isCorrect).length / quiz.length) * 100);
+      const score = Math.round((qResults.filter(r => r.isCorrect).length / shuffledQuiz.length) * 100);
       const passed = score >= 60;
-
       setResults({ qResults, score, passed });
       setSubmitted(true);
-
       if (passed) {
         setShowCelebration(true);
-        setTimeout(() => {
-          setShowCelebration(false);
-          onPass(score);
-        }, 2000);
+        setTimeout(() => { setShowCelebration(false); onPass(score); }, 2000);
       }
     }
   };
@@ -56,7 +73,7 @@ export default function KnowledgeCheck({ quiz, onPass }) {
     setShowCelebration(false);
   };
 
-  const allAnswered = quiz.every(q => (answers[q.id] || []).length > 0);
+  const allAnswered = shuffledQuiz.every(q => (answers[q.id] || []).length > 0);
 
   if (showCelebration) {
     return (
@@ -93,19 +110,16 @@ export default function KnowledgeCheck({ quiz, onPass }) {
       )}
 
       <div className="space-y-6">
-        {quiz.map((question, qi) => {
+        {shuffledQuiz.map((question, qi) => {
           const qResult = results?.qResults.find(r => r.id === question.id);
           const selected = answers[question.id] || [];
-
           return (
             <div
               key={question.id}
               className={`card transition-all duration-300 ${
-                submitted && qResult?.isCorrect
-                  ? 'border-success/30 bg-success/5'
-                  : submitted && !qResult?.isCorrect
-                  ? 'border-error/30 bg-error/5'
-                  : 'border-white/10'
+                submitted && qResult?.isCorrect ? 'border-success/30 bg-success/5'
+                : submitted && !qResult?.isCorrect ? 'border-error/30 bg-error/5'
+                : 'border-white/10'
               }`}
             >
               <div className="flex items-start gap-3 mb-4">
@@ -126,25 +140,18 @@ export default function KnowledgeCheck({ quiz, onPass }) {
                   </div>
                 )}
               </div>
-
               <div className="space-y-2 ml-9">
                 {question.options.map((option, oi) => {
                   const isSelected = selected.includes(oi);
                   const isCorrect = question.correct.includes(oi);
                   let optionClass = 'border-white/10 hover:border-primary/50 hover:bg-primary/5 cursor-pointer';
-
                   if (submitted) {
-                    if (isCorrect) {
-                      optionClass = 'border-success/50 bg-success/10 cursor-default';
-                    } else if (isSelected && !isCorrect) {
-                      optionClass = 'border-error/50 bg-error/10 cursor-default';
-                    } else {
-                      optionClass = 'border-white/5 opacity-60 cursor-default';
-                    }
+                    if (isCorrect) optionClass = 'border-success/50 bg-success/10 cursor-default';
+                    else if (isSelected && !isCorrect) optionClass = 'border-error/50 bg-error/10 cursor-default';
+                    else optionClass = 'border-white/5 opacity-60 cursor-default';
                   } else if (isSelected) {
                     optionClass = 'border-primary/60 bg-primary/10 cursor-pointer';
                   }
-
                   return (
                     <div
                       key={oi}
@@ -153,14 +160,8 @@ export default function KnowledgeCheck({ quiz, onPass }) {
                     >
                       <div className={`flex-shrink-0 w-4 h-4 rounded-${question.type === 'multi' ? 'sm' : 'full'} border-2 transition-all ${
                         submitted
-                          ? isCorrect
-                            ? 'border-success bg-success'
-                            : isSelected
-                            ? 'border-error bg-error'
-                            : 'border-white/20'
-                          : isSelected
-                          ? 'border-primary bg-primary'
-                          : 'border-white/30'
+                          ? isCorrect ? 'border-success bg-success' : isSelected ? 'border-error bg-error' : 'border-white/20'
+                          : isSelected ? 'border-primary bg-primary' : 'border-white/30'
                       }`}>
                         {(submitted ? isCorrect || (isSelected && !isCorrect) : isSelected) && (
                           <svg className="w-full h-full text-white p-0.5" viewBox="0 0 12 12" fill="none">
@@ -176,7 +177,6 @@ export default function KnowledgeCheck({ quiz, onPass }) {
                   );
                 })}
               </div>
-
               {submitted && (
                 <div className="mt-4 ml-9 p-3 rounded-lg bg-white/5 border border-white/10">
                   <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Explanation</p>
@@ -196,11 +196,7 @@ export default function KnowledgeCheck({ quiz, onPass }) {
           </button>
         )}
         {!submitted && (
-          <button
-            onClick={handleSubmit}
-            disabled={!allAnswered}
-            className="btn-primary"
-          >
+          <button onClick={handleSubmit} disabled={!allAnswered} className="btn-primary">
             Submit answers
           </button>
         )}

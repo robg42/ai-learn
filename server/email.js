@@ -69,4 +69,97 @@ async function sendMagicLink({ to, name, magicLink, token, ttlMinutes }) {
   }
 }
 
-module.exports = { sendMagicLink };
+/**
+ * Send a welcome email when a user account is first created.
+ */
+async function sendWelcomeEmail({ to, name }) {
+  const transporter = getTransporter();
+  const appUrl = process.env.MAGIC_LINK_BASE_URL || 'http://localhost:3000';
+
+  if (!transporter) {
+    console.log(`[email] Welcome email (no credentials): ${to} (${name})`);
+    return;
+  }
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #0f0f13; color: #e2e8f0; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <div style="display: inline-block; background: #7c3aed; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px;">
+          <span style="font-size: 24px;">🧠</span>
+        </div>
+        <h1 style="margin: 0; font-size: 22px; color: #f8fafc;">Welcome to AI Learn!</h1>
+      </div>
+      <p style="color: #94a3b8; margin: 0 0 16px;">Hi ${name},</p>
+      <p style="color: #94a3b8; margin: 0 0 24px;">Your account has been created. Sign in anytime using your magic link to start learning about LLMs, Agentic AI, and AI Security.</p>
+      <div style="text-align: center; margin-bottom: 32px;">
+        <a href="${appUrl}" style="display: inline-block; background: #7c3aed; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+          Start Learning
+        </a>
+      </div>
+      <hr style="border: none; border-top: 1px solid #1e293b; margin: 0 0 24px;" />
+      <p style="color: #475569; font-size: 12px; margin: 0;">AI Learn — Building AI literacy, one lesson at a time.</p>
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: `"AI Learn" <${process.env.GMAIL_USER}>`,
+      to,
+      subject: `Welcome to AI Learn, ${name}!`,
+      html,
+    });
+    console.log(`[email] Welcome email sent to ${to}`);
+  } catch (err) {
+    console.error('[email] Failed to send welcome email:', err.message);
+  }
+}
+
+/**
+ * Send a milestone / completion email.
+ * @param {Object} opts
+ * @param {string} opts.to
+ * @param {string} opts.name
+ * @param {string} opts.milestoneTitle  e.g. "LLM Fundamentals Complete!"
+ * @param {string} opts.milestoneBody   e.g. "You've finished all lessons in LLM Fundamentals."
+ */
+async function sendMilestoneEmail({ to, name, milestoneTitle, milestoneBody }) {
+  const transporter = getTransporter();
+  const appUrl = process.env.MAGIC_LINK_BASE_URL || 'http://localhost:3000';
+
+  if (!transporter) {
+    console.log(`[email] Milestone email (no credentials): ${to} — ${milestoneTitle}`);
+    return;
+  }
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #0f0f13; color: #e2e8f0; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <div style="font-size: 48px; margin-bottom: 12px;">🏆</div>
+        <h1 style="margin: 0; font-size: 22px; color: #f8fafc;">${milestoneTitle}</h1>
+      </div>
+      <p style="color: #94a3b8; margin: 0 0 16px;">Hi ${name},</p>
+      <p style="color: #94a3b8; margin: 0 0 32px;">${milestoneBody}</p>
+      <div style="text-align: center; margin-bottom: 32px;">
+        <a href="${appUrl}" style="display: inline-block; background: #7c3aed; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+          Keep Learning
+        </a>
+      </div>
+      <hr style="border: none; border-top: 1px solid #1e293b; margin: 0 0 24px;" />
+      <p style="color: #475569; font-size: 12px; margin: 0;">AI Learn — Building AI literacy, one lesson at a time.</p>
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: `"AI Learn" <${process.env.GMAIL_USER}>`,
+      to,
+      subject: milestoneTitle,
+      html,
+    });
+    console.log(`[email] Milestone email sent to ${to}: ${milestoneTitle}`);
+  } catch (err) {
+    console.error('[email] Failed to send milestone email:', err.message);
+  }
+}
+
+module.exports = { sendMagicLink, sendWelcomeEmail, sendMilestoneEmail };

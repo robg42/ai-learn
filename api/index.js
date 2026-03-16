@@ -5,6 +5,8 @@ const authRoutes = require('../server/routes/auth');
 const progressRoutes = require('../server/routes/progress');
 const badgeRoutes = require('../server/routes/badges');
 const adminRoutes = require('../server/routes/admin');
+const leaderboardRoutes = require('../server/routes/leaderboard');
+const notesRoutes = require('../server/routes/notes');
 const authMiddleware = require('../server/middleware/auth');
 
 const app = express();
@@ -33,11 +35,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/badges', badgeRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/notes', notesRoutes);
 
 app.get('/api/me', authMiddleware, async (req, res) => {
   try {
     const userResult = await db.execute({
-      sql: 'SELECT id, email, name, role, created_at FROM users WHERE id = ?',
+      sql: 'SELECT id, email, name, role, created_at, can_view_leaderboard, show_on_leaderboard FROM users WHERE id = ?',
       args: [req.user.id]
     });
     const user = userResult.rows[0];

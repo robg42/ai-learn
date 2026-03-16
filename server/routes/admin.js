@@ -2,6 +2,7 @@ const express = require('express');
 const { db } = require('../db');
 const authMiddleware = require('../middleware/auth');
 const adminOnly = require('../middleware/adminOnly');
+const { sendWelcomeEmail } = require('../email');
 
 const router = express.Router();
 
@@ -36,7 +37,10 @@ router.post('/users', async (req, res) => {
       sql: 'SELECT id, email, name, role, created_at FROM users WHERE id = ?',
       args: [Number(result.lastInsertRowid)]
     });
-    res.status(201).json({ ...newUser.rows[0] });
+    const created = { ...newUser.rows[0] };
+    // Fire welcome email (non-blocking)
+    sendWelcomeEmail({ to: created.email, name: created.name }).catch(() => {});
+    res.status(201).json(created);
   } catch (err) {
     console.error('Create user error:', err);
     res.status(500).json({ error: 'Failed to create user' });
@@ -47,7 +51,7 @@ router.post('/users', async (req, res) => {
 router.get('/users', async (req, res) => {
   try {
     const usersResult = await db.execute({
-      sql: 'SELECT id, email, name, role, created_at, last_login_at, login_count FROM users ORDER BY created_at DESC',
+      sql: 'SELECT id, email, name, role, created_at, last_login_at, login_count, show_on_leaderboard, can_view_leaderboard FROM users ORDER BY created_at DESC',
       args: []
     });
 
@@ -193,6 +197,25 @@ router.post('/badges/award', async (req, res) => {
   } catch (err) {
     console.error('Badge award error:', err);
     res.status(500).json({ error: 'Failed to award badge' });
+  }
+});
+
+// PATCH /api/admin/users/:id/leaderboard — toggle leaderboard visibility settings
+router.patch('/users/:id/leaderboard', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { showOnLeaderboard, canViewLeaderboard } = req.body;
+    const sets = [];
+    const args = [];
+    if (showOnLeaderboard !== undefined) { sets.push('show_on_leaderboard = ?'); args.push(showOnLeaderboard ? 1 : 0); }
+    if (canViewLeaderboard !== undefined) { sets.push('can_view_leaderboard = ?'); args.push(canViewLeaderboard ? 1 : 0); }
+    if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update' });
+    args.push(id);
+    await db.execute({ sql: `UPDATE users SET ${sets.join(', ')} WHERE id = ?`, args });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('PATCH /admin/users/:id/leaderboard error:', err);
+    res.status(500).json({ error: 'Failed to update leaderboard settings' });
   }
 });
 

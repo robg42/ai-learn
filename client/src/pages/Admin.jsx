@@ -60,6 +60,7 @@ export default function Admin() {
   const [deletingUserId, setDeletingUserId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [changingRoleId, setChangingRoleId] = useState(null);
+  const [changingLeaderboardId, setChangingLeaderboardId] = useState(null);
 
   // Award state
   const [awardUserId, setAwardUserId] = useState('');
@@ -67,6 +68,23 @@ export default function Admin() {
   const [awardSearch, setAwardSearch] = useState('');
   const [awardSuccess, setAwardSuccess] = useState('');
   const [awardError, setAwardError] = useState('');
+
+  const changeLeaderboard = async (userId, field, value) => {
+    setChangingLeaderboardId(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/leaderboard`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ [field]: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, [field === 'showOnLeaderboard' ? 'show_on_leaderboard' : 'can_view_leaderboard']: value ? 1 : 0 } : u));
+    } catch (err) {
+      alert(err.message || 'Failed to update leaderboard settings');
+    }
+    setChangingLeaderboardId(null);
+  };
 
   const changeRole = async (userId, newRole) => {
     setChangingRoleId(userId);
@@ -454,6 +472,29 @@ export default function Admin() {
                                         ? 'Remove admin'
                                         : 'Make admin'}
                                     </button>
+                                  </div>
+
+                                  {/* Leaderboard toggles */}
+                                  <div className="flex items-center gap-4 flex-wrap">
+                                    {[
+                                      { label: 'On leaderboard', field: 'showOnLeaderboard', dbKey: 'show_on_leaderboard' },
+                                      { label: 'Can view leaderboard', field: 'canViewLeaderboard', dbKey: 'can_view_leaderboard' },
+                                    ].map(({ label, field, dbKey }) => {
+                                      const enabled = u[dbKey] !== 0;
+                                      return (
+                                        <button
+                                          key={field}
+                                          onClick={() => changeLeaderboard(u.id, field, !enabled)}
+                                          disabled={changingLeaderboardId === u.id}
+                                          className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-lg transition-colors disabled:opacity-50 ${
+                                            enabled ? 'bg-success/20 text-success hover:bg-success/30' : 'bg-white/10 text-text-muted hover:bg-white/20'
+                                          }`}
+                                        >
+                                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${enabled ? 'bg-success' : 'bg-text-muted'}`} />
+                                          {label}
+                                        </button>
+                                      );
+                                    })}
                                   </div>
 
                                   {/* Delete */}

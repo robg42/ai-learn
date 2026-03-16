@@ -10,7 +10,8 @@ const SECTION_NAMES = {
   'agentic-ai': 'Agentic AI',
   'ai-security': 'AI Security',
 };
-const TOTAL_SUBSECTIONS = 18; // 6 per section × 3 sections
+const TOTAL_SUBSECTIONS = 54; // 18 per section × 3 sections
+const SUBSECTIONS_PER_SECTION = 18;
 
 // GET /api/progress/me
 router.get('/me', authMiddleware, async (req, res) => {
@@ -100,7 +101,7 @@ async function checkMilestones(userId, sectionId) {
 
   // Section completion milestone
   const sectionRows = progressResult.rows.filter(r => r.section_id === sectionId);
-  if (sectionRows.length === 6) {
+  if (sectionRows.length === SUBSECTIONS_PER_SECTION) {
     const sectionName = SECTION_NAMES[sectionId] || sectionId;
     await sendMilestoneEmail({
       to: user.email,

@@ -75,9 +75,9 @@ router.get('/users', async (req, res) => {
 
       const progressRows = progressResult.rows;
       const sectionCounts = {
-        'llm-basics': { total: 6, completed: 0 },
-        'agentic-ai': { total: 6, completed: 0 },
-        'ai-security': { total: 6, completed: 0 }
+        'llm-basics': { total: 18, completed: 0 },
+        'agentic-ai': { total: 18, completed: 0 },
+        'ai-security': { total: 18, completed: 0 }
       };
       for (const row of progressRows) {
         if (sectionCounts[row.section_id]) {
@@ -281,7 +281,7 @@ router.get('/analytics', async (req, res) => {
     const sectionCompletionResult = await db.execute({
       sql: `SELECT section_id,
                    COUNT(DISTINCT user_id) as users_started,
-                   COUNT(DISTINCT CASE WHEN sub_count >= 6 THEN user_id END) as users_completed
+                   COUNT(DISTINCT CASE WHEN sub_count >= 18 THEN user_id END) as users_completed
             FROM (
               SELECT user_id, section_id, COUNT(*) as sub_count
               FROM progress
@@ -317,7 +317,7 @@ router.get('/analytics', async (req, res) => {
       args: []
     });
 
-    const totalSubsections = 18;
+    const totalSubsections = 54; // 3 sections × 18 subsections each
     const avgRaw = avgCompletionResult.rows[0]?.avg;
 
     res.json({

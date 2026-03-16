@@ -50,51 +50,62 @@ router.post('/users', async (req, res) => {
 // GET /api/admin/users
 router.get('/users', async (req, res) => {
   try {
-    const usersResult = await db.execute({
-      sql: 'SELECT id, email, name, role, created_at, last_login_at, login_count, show_on_leaderboard, can_view_leaderboard FROM users ORDER BY created_at DESC',
+    // Single aggregated query replaces N×3 per-user queries
+    const result = await db.execute({
+      sql: `SELECT
+              u.id, u.email, u.name, u.role, u.created_at, u.last_login_at, u.login_count,
+              u.show_on_leaderboard, u.can_view_leaderboard,
+              COUNT(DISTINCT p.id)  AS total_completed,
+              COUNT(DISTINCT ba.id) AS total_badges,
+              MAX(p.completed_at)   AS last_active,
+              SUM(CASE WHEN p.section_id = 'llm-basics'  THEN 1 ELSE 0 END) AS llm_completed,
+              SUM(CASE WHEN p.section_id = 'agentic-ai'  THEN 1 ELSE 0 END) AS agentic_completed,
+              SUM(CASE WHEN p.section_id = 'ai-security' THEN 1 ELSE 0 END) AS security_completed
+            FROM users u
+            LEFT JOIN progress p     ON p.user_id  = u.id
+            LEFT JOIN badge_awards ba ON ba.user_id = u.id
+            GROUP BY u.id
+            ORDER BY u.created_at DESC`,
       args: []
     });
 
-    const result = await Promise.all(usersResult.rows.map(async (user) => {
-      const progressResult = await db.execute({
-        sql: 'SELECT section_id, subsection_id FROM progress WHERE user_id = ?',
-        args: [user.id]
-      });
-      const badgesResult = await db.execute({
-        sql: `SELECT ba.awarded_at, bd.slug, bd.name, bd.icon, bd.color
-              FROM badge_awards ba
-              JOIN badge_definitions bd ON bd.id = ba.badge_id
-              WHERE ba.user_id = ?
-              ORDER BY ba.awarded_at DESC`,
-        args: [user.id]
-      });
-      const lastActiveResult = await db.execute({
-        sql: 'SELECT MAX(completed_at) as last_active FROM progress WHERE user_id = ?',
-        args: [user.id]
-      });
+    // Second query: all badge awards across all users in one shot
+    const badgesResult = await db.execute({
+      sql: `SELECT ba.user_id, ba.awarded_at, bd.slug, bd.name, bd.icon, bd.color
+            FROM badge_awards ba
+            JOIN badge_definitions bd ON bd.id = ba.badge_id
+            ORDER BY ba.awarded_at DESC`,
+      args: []
+    });
 
-      const progressRows = progressResult.rows;
-      const sectionCounts = {
-        'llm-basics': { total: 18, completed: 0 },
-        'agentic-ai': { total: 18, completed: 0 },
-        'ai-security': { total: 18, completed: 0 }
-      };
-      for (const row of progressRows) {
-        if (sectionCounts[row.section_id]) {
-          sectionCounts[row.section_id].completed++;
-        }
-      }
+    // Group badges by user_id
+    const badgesByUser = {};
+    for (const row of badgesResult.rows) {
+      if (!badgesByUser[row.user_id]) badgesByUser[row.user_id] = [];
+      badgesByUser[row.user_id].push({ awarded_at: row.awarded_at, slug: row.slug, name: row.name, icon: row.icon, color: row.color });
+    }
 
-      return {
-        ...user,
-        progressSummary: sectionCounts,
-        totalCompleted: progressRows.length,
-        badges: badgesResult.rows.map(r => ({ ...r })),
-        lastActive: lastActiveResult.rows[0]?.last_active || null
-      };
+    const users = result.rows.map(row => ({
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      role: row.role,
+      created_at: row.created_at,
+      last_login_at: row.last_login_at,
+      login_count: Number(row.login_count || 0),
+      show_on_leaderboard: row.show_on_leaderboard,
+      can_view_leaderboard: row.can_view_leaderboard,
+      totalCompleted: Number(row.total_completed || 0),
+      lastActive: row.last_active || null,
+      badges: badgesByUser[row.id] || [],
+      progressSummary: {
+        'llm-basics':  { total: 18, completed: Number(row.llm_completed  || 0) },
+        'agentic-ai':  { total: 18, completed: Number(row.agentic_completed || 0) },
+        'ai-security': { total: 18, completed: Number(row.security_completed || 0) },
+      },
     }));
 
-    res.json(result);
+    res.json(users);
   } catch (err) {
     console.error('GET /admin/users error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -230,8 +241,20 @@ router.patch('/users/:id/role', async (req, res) => {
     if (parseInt(id) === req.user.id) {
       return res.status(400).json({ error: 'You cannot change your own role' });
     }
-    const userResult = await db.execute({ sql: 'SELECT id FROM users WHERE id = ?', args: [id] });
+    const userResult = await db.execute({ sql: 'SELECT id, role FROM users WHERE id = ?', args: [id] });
     if (!userResult.rows[0]) return res.status(404).json({ error: 'User not found' });
+
+    // Prevent demoting the last admin
+    if (role === 'user' && userResult.rows[0].role === 'admin') {
+      const adminCount = await db.execute({
+        sql: 'SELECT COUNT(*) as count FROM users WHERE role = ?',
+        args: ['admin']
+      });
+      if (Number(adminCount.rows[0].count) <= 1) {
+        return res.status(400).json({ error: 'Cannot demote the last admin account' });
+      }
+    }
+
     await db.execute({ sql: 'UPDATE users SET role = ? WHERE id = ?', args: [role, id] });
     res.json({ ok: true, role });
   } catch (err) {
@@ -245,8 +268,19 @@ router.delete('/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (parseInt(id) === req.user.id) return res.status(400).json({ error: 'You cannot delete your own account' });
-    const userResult = await db.execute({ sql: 'SELECT id FROM users WHERE id = ?', args: [id] });
+    const userResult = await db.execute({ sql: 'SELECT id, role FROM users WHERE id = ?', args: [id] });
     if (!userResult.rows[0]) return res.status(404).json({ error: 'User not found' });
+
+    // Prevent deleting the last admin
+    if (userResult.rows[0].role === 'admin') {
+      const adminCount = await db.execute({
+        sql: 'SELECT COUNT(*) as count FROM users WHERE role = ?',
+        args: ['admin']
+      });
+      if (Number(adminCount.rows[0].count) <= 1) {
+        return res.status(400).json({ error: 'Cannot delete the last admin account' });
+      }
+    }
     await db.batch([
       { sql: 'DELETE FROM progress WHERE user_id = ?', args: [id] },
       { sql: 'DELETE FROM badge_awards WHERE user_id = ?', args: [id] },

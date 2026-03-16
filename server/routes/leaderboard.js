@@ -7,41 +7,31 @@ const router = express.Router();
 // Only returns users where show_on_leaderboard = 1
 router.get('/', async (req, res) => {
   try {
-    const usersResult = await db.execute({
-      sql: `SELECT u.id, u.name
+    // Single aggregated query replaces N×3 per-user queries
+    const result = await db.execute({
+      sql: `SELECT
+              u.id, u.name,
+              COUNT(DISTINCT p.id)  AS lessons_completed,
+              COUNT(DISTINCT ba.id) AS badges_earned,
+              MAX(p.completed_at)   AS last_active
             FROM users u
+            LEFT JOIN progress p     ON p.user_id  = u.id
+            LEFT JOIN badge_awards ba ON ba.user_id = u.id
             WHERE u.show_on_leaderboard = 1
-            ORDER BY u.created_at ASC`,
+            GROUP BY u.id
+            ORDER BY lessons_completed DESC, badges_earned DESC`,
       args: []
     });
 
-    const result = await Promise.all(usersResult.rows.map(async (user) => {
-      const progressResult = await db.execute({
-        sql: 'SELECT COUNT(*) as total FROM progress WHERE user_id = ?',
-        args: [user.id]
-      });
-      const badgesResult = await db.execute({
-        sql: 'SELECT COUNT(*) as total FROM badge_awards WHERE user_id = ?',
-        args: [user.id]
-      });
-      const lastActiveResult = await db.execute({
-        sql: 'SELECT MAX(completed_at) as last_active FROM progress WHERE user_id = ?',
-        args: [user.id]
-      });
-
-      return {
-        id: user.id,
-        name: user.name,
-        lessonsCompleted: Number(progressResult.rows[0]?.total || 0),
-        badgesEarned: Number(badgesResult.rows[0]?.total || 0),
-        lastActive: lastActiveResult.rows[0]?.last_active || null,
-      };
+    const leaderboard = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      lessonsCompleted: Number(row.lessons_completed || 0),
+      badgesEarned: Number(row.badges_earned || 0),
+      lastActive: row.last_active || null,
     }));
 
-    // Sort by lessons completed desc, then badges desc
-    result.sort((a, b) => b.lessonsCompleted - a.lessonsCompleted || b.badgesEarned - a.badgesEarned);
-
-    res.json(result);
+    res.json(leaderboard);
   } catch (err) {
     console.error('GET /api/leaderboard error:', err);
     res.status(500).json({ error: 'Server error' });

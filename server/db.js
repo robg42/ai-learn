@@ -135,6 +135,7 @@ async function initDb() {
     `ALTER TABLE users ADD COLUMN login_count INTEGER DEFAULT 0`,
     `ALTER TABLE users ADD COLUMN show_on_leaderboard INTEGER DEFAULT 1`,
     `ALTER TABLE users ADD COLUMN can_view_leaderboard INTEGER DEFAULT 1`,
+    `ALTER TABLE users ADD COLUMN last_seen_date TEXT`,
     `CREATE TABLE IF NOT EXISTS notes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER REFERENCES users(id),

@@ -58,9 +58,9 @@ router.get('/users', async (req, res) => {
               COUNT(DISTINCT p.id)  AS total_completed,
               COUNT(DISTINCT ba.id) AS total_badges,
               MAX(p.completed_at)   AS last_active,
-              SUM(CASE WHEN p.section_id = 'llm-basics'  THEN 1 ELSE 0 END) AS llm_completed,
-              SUM(CASE WHEN p.section_id = 'agentic-ai'  THEN 1 ELSE 0 END) AS agentic_completed,
-              SUM(CASE WHEN p.section_id = 'ai-security' THEN 1 ELSE 0 END) AS security_completed
+              COUNT(DISTINCT CASE WHEN p.section_id = 'llm-basics'  THEN p.id END) AS llm_completed,
+              COUNT(DISTINCT CASE WHEN p.section_id = 'agentic-ai'  THEN p.id END) AS agentic_completed,
+              COUNT(DISTINCT CASE WHEN p.section_id = 'ai-security' THEN p.id END) AS security_completed
             FROM users u
             LEFT JOIN progress p     ON p.user_id  = u.id
             LEFT JOIN badge_awards ba ON ba.user_id = u.id

@@ -2,7 +2,7 @@
 
 A gamified internal learning platform for LLM fundamentals, Agentic AI, and AI Security.
 
-**Target URL:** learn.robrag.com
+**Target URL:** learn.robgregg.com
 **Users:** ~20–50 internal team members
 **Stack:** React + Express + SQLite
 
@@ -151,7 +151,7 @@ pm2 startup
 ```nginx
 server {
     listen 80;
-    server_name learn.robrag.com;
+    server_name learn.robgregg.com;
 
     location / {
         proxy_pass http://localhost:3001;
@@ -166,7 +166,7 @@ server {
 
 Enable HTTPS with Certbot:
 ```bash
-sudo certbot --nginx -d learn.robrag.com
+sudo certbot --nginx -d learn.robgregg.com
 ```
 
 ### 5. Firewall

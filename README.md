@@ -2,9 +2,21 @@
 
 A gamified internal learning platform for LLM fundamentals, Agentic AI, and AI Security.
 
-**Target URL:** learn.robgregg.com
+**URL:** learn.robgregg.com
 **Users:** ~20–50 internal team members
-**Stack:** React + Express + SQLite
+**Stack:** React + Express + Turso (libSQL) + Vercel
+
+---
+
+## Authentication
+
+The app uses **magic link authentication** — no passwords.
+
+1. User enters their email on the login screen
+2. They receive an email with a one-time link (valid 15 minutes)
+3. Clicking the link signs them in
+
+Users cannot self-register. **Admins create accounts** via the admin dashboard (`/admin`).
 
 ---
 
@@ -12,18 +24,15 @@ A gamified internal learning platform for LLM fundamentals, Agentic AI, and AI S
 
 ### Prerequisites
 - Node.js 18+
-- npm 9+
+- A [Turso](https://turso.tech) database (free tier works fine)
+- A Gmail account for sending magic links (optional — falls back to console logging)
 
-### 1. Clone and install dependencies
+### 1. Clone and install
 
 ```bash
-git clone <your-repo>
+git clone https://github.com/robg42/ai-learn.git
 cd ai-learn
-
-# Install server dependencies
-cd server && npm install && cd ..
-
-# Install client dependencies
+npm install          # root
 cd client && npm install && cd ..
 ```
 
@@ -31,213 +40,169 @@ cd client && npm install && cd ..
 
 ```bash
 cp .env.example .env
-# Edit .env and set a strong JWT_SECRET
 ```
 
-### 3. Create your first admin user
+Edit `.env`:
 
-```bash
-cd server
-node ../scripts/create-admin.js --email admin@yourcompany.com --password yourpassword --name "Your Name"
+```env
+# Required
+JWT_SECRET=your-long-random-secret
+TURSO_DATABASE_URL=libsql://your-db.turso.io
+TURSO_AUTH_TOKEN=your-turso-token
+
+# Magic link base URL (where users click through to)
+MAGIC_LINK_BASE_URL=http://localhost:3000
+
+# Optional — Gmail for sending magic links
+GMAIL_USER=you@gmail.com
+GMAIL_PASS=your-app-password   # Gmail App Password, not your account password
 ```
 
-### 4. Start the development servers
+If Gmail is not configured, magic link tokens are printed to the server console instead.
 
-Open two terminals:
+### 3. Start the development servers
 
 **Terminal 1 — API server:**
 ```bash
-cd server
-npm run dev
+node server/server.js
 # Runs on http://localhost:3001
 ```
 
 **Terminal 2 — React client:**
 ```bash
-cd client
-npm start
+cd client && npx webpack serve --mode development
 # Runs on http://localhost:3000, proxies /api to :3001
 ```
 
-Open http://localhost:3000 and sign in with your admin credentials.
+### 4. Create your first admin
+
+The first user must be created directly in the Turso database, or by temporarily inserting a row:
+
+```bash
+# Using the Turso CLI
+turso db shell your-db-name \
+  "INSERT INTO users (email, name, role) VALUES ('you@company.com', 'Your Name', 'admin');"
+```
+
+After that, all user management is done through the admin dashboard.
 
 ---
 
-## Password Reset Flow
+## Admin Dashboard
 
-There is no email service. To reset a user's password:
+Navigate to `/admin` (admin role required).
 
-1. User submits a reset request at the login screen
-2. A token is logged to the **server console** (Terminal 1):
-   ```
-   [PASSWORD RESET] User: user@company.com
-   [PASSWORD RESET] Token: eyJ...
-   [PASSWORD RESET] Use: POST /api/auth/reset with { token, newPassword }
-   ```
-3. Admin copies the token and sends it to the user via Slack/email
-4. User calls the reset endpoint (or you build a `/reset` page):
-   ```bash
-   curl -X POST http://localhost:3001/api/auth/reset \
-     -H "Content-Type: application/json" \
-     -d '{"token": "eyJ...", "newPassword": "newpassword123"}'
-   ```
+- **Users tab** — create/delete users, promote to admin, toggle leaderboard visibility
+- **Badges tab** — create custom badges, award badges to users
+- **Analytics tab** — completion rates, quiz scores, activity over time
 
 ---
 
-## Production Build
+## Deployment (Vercel)
 
-### Build and bundle
+The app is deployed on Vercel with the following configuration in `vercel.json`:
 
-```bash
-cd client
-npm run build          # compiles React to client/dist/
-npm run build:copy     # compiles + copies to server/public/
-```
-
-### Run in production
-
-```bash
-cd server
-NODE_ENV=production npm start
-# Serves everything on http://localhost:3001
-```
-
-Set `PORT` in `.env` to `80` or use a reverse proxy (Nginx/Caddy).
-
----
-
-## VPS Deployment (Ubuntu/Debian)
-
-### 1. Server setup
-
-```bash
-# Install Node.js 20
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Install PM2 for process management
-sudo npm install -g pm2
-```
-
-### 2. Deploy the app
-
-```bash
-# On your VPS
-git clone <your-repo> /opt/ai-learn
-cd /opt/ai-learn
-
-cp .env.example .env
-# Edit .env — set JWT_SECRET to a long random string and NODE_ENV=production
-
-cd server && npm install --production
-cd ../client && npm install && npm run build:copy
-
-# Create first admin
-cd ..
-node scripts/create-admin.js --email admin@yourcompany.com --password <strongpassword> --name "Admin"
-```
-
-### 3. Start with PM2
-
-```bash
-cd /opt/ai-learn/server
-pm2 start server.js --name ai-learn
-pm2 save
-pm2 startup
-```
-
-### 4. Nginx reverse proxy (recommended)
-
-```nginx
-server {
-    listen 80;
-    server_name learn.robgregg.com;
-
-    location / {
-        proxy_pass http://localhost:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
+```json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
 ```
 
-Enable HTTPS with Certbot:
-```bash
-sudo certbot --nginx -d learn.robgregg.com
+### Environment variables (set in Vercel dashboard)
+
+| Variable | Description |
+|---|---|
+| `JWT_SECRET` | Long random string for signing session tokens |
+| `TURSO_DATABASE_URL` | Your Turso database URL |
+| `TURSO_AUTH_TOKEN` | Your Turso auth token |
+| `MAGIC_LINK_BASE_URL` | Production URL e.g. `https://learn.robgregg.com` |
+| `GMAIL_USER` | Gmail address for sending magic links |
+| `GMAIL_PASS` | Gmail App Password |
+
+---
+
+## Course Structure
+
+3 sections × 18 lessons = **54 lessons total**
+
+| Section | Unlocks when |
+|---|---|
+| LLM Basics | Always available |
+| Agentic AI | LLM Basics lesson 1 complete |
+| AI Security | Agentic AI lesson 1 complete |
+
+Within each section, lessons unlock sequentially. Quizzes must be passed to proceed.
+
+---
+
+## Features
+
+- **Magic link auth** — passwordless, admin-provisioned accounts
+- **Sequential lesson unlocking** with quiz gates
+- **Badges** — auto-awarded on lesson/section completion, plus admin-created custom badges
+- **Leaderboard** — per-user show/view controls managed by admin
+- **Notes** — auto-saved per lesson
+- **Quiz score history** on profile
+- **Completion certificates** — downloadable PDF per completed section
+- **Share progress card** — copy-to-clipboard summary
+- **Lesson search** in the learn sidebar
+- **Milestone emails** — on section and full course completion
+- **Welcome email** on account creation
+
+---
+
+## API Reference
+
+### Auth
+```
+POST /api/auth/magic-request    { email } — send magic link
+POST /api/auth/magic-verify     { token } → { token, user }
+PATCH /api/auth/me              { name } — update display name
 ```
 
-### 5. Firewall
+### User
+```
+GET  /api/me                    → { user, progress, badges }
+POST /api/progress              { sectionId, subsectionId, quizScore }
+POST /api/badges/auto-check     { subsectionId } → { newBadges[] }
+GET  /api/badges                → all badge definitions (for catalog)
+GET  /api/leaderboard           → public leaderboard (show_on_leaderboard=1 only)
+GET  /api/notes/:subsectionId   → user's note for lesson
+PUT  /api/notes/:subsectionId   { content } — upsert note
+```
 
-```bash
-sudo ufw allow 22
-sudo ufw allow 80
-sudo ufw allow 443
-sudo ufw enable
+### Admin (requires admin role)
+```
+GET    /api/admin/users
+POST   /api/admin/users                     { email, name }
+DELETE /api/admin/users/:id
+PATCH  /api/admin/users/:id/role            { role }
+PATCH  /api/admin/users/:id/leaderboard     { showOnLeaderboard, canViewLeaderboard }
+GET    /api/admin/users/:id
+GET    /api/admin/badges
+POST   /api/admin/badges                    { name, description, icon, color }
+POST   /api/admin/badges/award              { userId, badgeId }
+GET    /api/admin/analytics
 ```
 
 ---
 
 ## Database
 
-SQLite database is stored at `./data/ai-learn.db` (relative to `server/`). Back this up regularly:
+Uses [Turso](https://turso.tech) (libSQL) in production. Schema is created automatically on first run via `server/db.js`.
 
+To back up the database:
 ```bash
-cp /opt/ai-learn/data/ai-learn.db /opt/ai-learn/data/ai-learn.db.bak
+turso db shell your-db-name ".dump" > backup.sql
 ```
 
 ---
 
-## Course Structure
+## Updating Content
 
-- **Section 1: LLM Basics** — 6 subsections, unlocked by default
-- **Section 2: Agentic AI** — 6 subsections, unlocks when LLM Basics #1 is complete
-- **Section 3: AI Security** — 6 subsections, unlocks when Agentic AI #1 is complete
-
-### Auto Badges
-
-| Badge | Trigger |
-|---|---|
-| First Steps | Complete "What Are LLMs?" |
-| LLM Master | Complete all LLM Basics |
-| Agentic Thinker | Complete "What Is Agentic AI?" |
-| Agent Architect | Complete all Agentic AI |
-| Security Sentinel | Complete all AI Security |
-| Full Stack | Complete all 18 subsections |
-
----
-
-## API Reference
-
-```
-POST /api/auth/signup           { email, password, name }
-POST /api/auth/login            { email, password } → { token, user }
-POST /api/auth/reset-request    { email }
-POST /api/auth/reset            { token, newPassword }
-
-GET  /api/me                    → { user, progress, badges }
-POST /api/progress              { sectionId, subsectionId, quizScore }
-POST /api/badges/auto-check     { subsectionId } → { newBadges[] }
-
-GET  /api/admin/users           admin only
-GET  /api/admin/users/:id       admin only
-POST /api/admin/badges          admin only — create custom badge
-GET  /api/admin/badges          admin only
-POST /api/admin/badges/award    admin only — { userId, badgeId }
-GET  /api/admin/analytics       admin only
-```
-
----
-
-## Maintenance
-
-This app is designed to be set-and-forget:
-- No email service required
-- No background jobs
-- No external dependencies at runtime
-- SQLite means no database server to maintain
-- PM2 auto-restarts on crash
-
-To update content, edit `client/src/content/course.js` and rebuild.
+All course content lives in `client/src/content/course.js`. Edit lessons, quizzes, and section metadata there, then push — Vercel will rebuild automatically.

@@ -252,7 +252,15 @@ Common pitfalls include under-specifying the task (leading to generic outputs), 
             explanation: 'Good prompt engineering mirrors software engineering: version control, testing, and using examples. Prompts should be iterated, not set-and-forgotten.'
           }
         ]
-      },
+      },,
+        {
+          id: 'lab-temperature',
+          title: 'Lab: Temperature Explorer',
+          type: 'lab',
+          labComponent: 'TemperatureLab',
+          estimatedMinutes: 10,
+          intro: `Temperature is one of the most important parameters you'll tune in production. In this lab you'll run the same prompt at temperatures 0, 0.5, and 1.0 side-by-side — multiple times — to build real intuition for how randomness affects consistency, creativity, and reliability.`,
+        }
       {
         id: 'llm-capabilities',
         title: 'Capabilities & Limitations',
@@ -545,7 +553,15 @@ When to use long context vs RAG: use long context when the full document set fit
                 explanation: 'Hybrid retrieval combines semantic (dense vector) search with keyword (BM25) search, capturing both conceptual similarity and exact keyword matches — typically outperforming either alone.'
               }
             ]
-          },
+          },,
+            {
+              id: 'lab-rag-quality',
+              title: 'Lab: RAG Retrieval Quality',
+              type: 'lab',
+              labComponent: 'RAGQualityLab',
+              estimatedMinutes: 12,
+              intro: `RAG is only as good as what gets retrieved. In this lab you'll manually curate context chunks for a query, compare your choices against a noisy retriever and a semantic retriever, then see how retrieval quality directly determines the quality of the final answer.`,
+            }
           {
             id: 'evaluating-llms',
             title: 'Evaluating LLMs',
@@ -669,7 +685,15 @@ Testing LLM-integrated code requires eval frameworks. Deterministic unit tests b
                 explanation: 'Rate limits are transient. Exponential backoff with jitter (randomised delay) prevents thundering-herd retry storms while allowing recovery when capacity becomes available.'
               }
             ]
-          },
+          },,
+            {
+              id: 'lab-hallucination-hunter',
+              title: 'Lab: Hallucination Hunter',
+              type: 'lab',
+              labComponent: 'HallucinationHunter',
+              estimatedMinutes: 12,
+              intro: `AI systems can generate completely plausible-sounding falsehoods mixed with accurate facts. In this lab you'll read AI-generated answers and identify the hallucinated sentences — training your eye to spot the subtle errors that catch even experienced practitioners off guard.`,
+            }
           {
             id: 'lab-prompt-playground',
             title: 'Lab: Prompt Engineering Challenges',
@@ -911,7 +935,15 @@ Reasoning-time scaling is the newest dimension. Models like o1/o3 use more compu
                 explanation: 'Reasoning-time scaling (as in o1/o3) uses extra inference compute — extended chain-of-thought, search — to improve complex task performance, complementing parameter-count scaling.'
               }
             ]
-          },
+          },,
+            {
+              id: 'lab-context-window',
+              title: 'Lab: Lost in the Middle',
+              type: 'lab',
+              labComponent: 'ContextWindowLab',
+              estimatedMinutes: 12,
+              intro: `LLMs pay more attention to information at the start and end of their context window than to content buried in the middle. In this lab you'll hide a needle fact at three positions in a long document and test whether the model can retrieve it — demonstrating the lost-in-the-middle effect.`,
+            }
           {
             id: 'interpretability',
             title: 'Mechanistic Interpretability',
@@ -1389,7 +1421,15 @@ Multi-agent systems amplify both the capabilities and the risks of single agents
             explanation: 'In multi-agent systems, mistakes propagate — a planning error becomes a downstream execution failure. Comprehensive logging and tracing are essential for debugging and trust.'
           }
         ]
-      },
+      },,
+        {
+          id: 'lab-multi-agent-debate',
+          title: 'Lab: Multi-Agent Debate',
+          type: 'lab',
+          labComponent: 'MultiAgentDebate',
+          estimatedMinutes: 15,
+          intro: `See how system prompt design shapes the entire direction of multi-agent coordination. In this lab two AI agents with opposing perspectives debate live on topics like AI regulation and AGI timelines. Modify their personas to see how framing changes everything.`,
+        }
       {
         id: 'building-agents',
         title: 'Building Your First Agent',
@@ -1577,7 +1617,15 @@ Graceful degradation means having fallback strategies when primary approaches fa
                 explanation: 'Graceful degradation means agents have fallback strategies — simpler tools, partial results with caveats, or human escalation — rather than failing silently or crashing.'
               }
             ]
-          },
+          },,
+            {
+              id: 'lab-broken-agent',
+              title: 'Lab: Debug the Broken Agent',
+              type: 'lab',
+              labComponent: 'BrokenAgentLab',
+              estimatedMinutes: 15,
+              intro: `Most real-world agent failures aren't code bugs — they're system prompt design flaws. In this lab you'll diagnose three broken agents: one that loops forever, one with catastrophic blast radius, and one that confidently hallucinates. Find the bugs and learn the fixes.`,
+            }
           {
             id: 'human-in-the-loop',
             title: 'Human-in-the-Loop Design',
@@ -1634,7 +1682,15 @@ Asynchronous approval is a pattern where the agent pauses a task, notifies a hum
                 explanation: 'Good interrupt messages are concise and actionable: what happened, what comes next, the consequences, and the choices available. Dumping the full raw context overwhelms reviewers.'
               }
             ]
-          },
+          },,
+            {
+              id: 'lab-hitl-design',
+              title: 'Lab: HITL Design Decisions',
+              type: 'lab',
+              labComponent: 'HITLDesignLab',
+              estimatedMinutes: 12,
+              intro: `Not every AI action needs human approval — but some definitely do. In this lab you'll evaluate 6 real-world AI deployment scenarios and choose the right level of human oversight for each, from fully automated to human-executes-only.`,
+            }
           {
             id: 'agent-evaluation',
             title: 'Evaluating Agents',
@@ -2414,7 +2470,15 @@ Red teaming is not a one-time exercise. Models are updated, prompts are changed,
             explanation: 'Each change to a deployed AI system — model update, prompt revision, new tool — can introduce new vulnerabilities. Red teaming must keep pace with system evolution.'
           }
         ]
-      },
+      },,
+            {
+              id: 'lab-red-team',
+              title: 'Lab: Red Team the System Prompt',
+              type: 'lab',
+              labComponent: 'RedTeamLab',
+              estimatedMinutes: 15,
+              intro: `Red teaming means thinking like an attacker before adversaries do. In this lab you'll analyze real-world AI system prompts to identify attack surfaces: information disclosure, privilege escalation, and prompt injection vulnerabilities — then learn the fixes.`,
+            }
       {
         id: 'secure-deployment',
         title: 'Secure AI Deployment',
@@ -2655,7 +2719,15 @@ The broader principle: model weights and fine-tuning are valuable IP. Organisati
                 explanation: 'Rate limiting, watermarking, and output perturbation all impede extraction. Encrypting weights at rest protects against server compromise, but doesn\'t stop inference-based extraction attacks.'
               }
             ]
-          },
+          },,
+            {
+              id: 'lab-data-leakage',
+              title: 'Lab: RAG Data Leakage',
+              type: 'lab',
+              labComponent: 'DataLeakageLab',
+              estimatedMinutes: 12,
+              intro: `A naive RAG system over a mixed-sensitivity knowledge base leaks confidential data to anyone who asks the right questions. In this lab you'll run real attack queries against an unfiltered RAG system, then see how sensitivity filtering stops the leakage.`,
+            }
           {
             id: 'ai-supply-chain',
             title: 'AI Supply Chain Attacks',
@@ -2836,7 +2908,15 @@ Threat modelling for AI systems should follow established frameworks (STRIDE, PA
                 explanation: 'Models have been shown to reveal secrets from their context when asked in various ways. Secrets should be injected at runtime via secure vaults — never placed in prompts where the model can reproduce them.'
               }
             ]
-          },
+          },,
+            {
+              id: 'lab-defensive-prompt',
+              title: 'Lab: Defensive Prompt Engineering',
+              type: 'lab',
+              labComponent: 'DefensivePromptLab',
+              estimatedMinutes: 20,
+              intro: `Writing secure system prompts is a skill. In this lab you'll craft system prompts that resist scope bypass, system prompt extraction, and prompt injection attacks — and test them against real adversarial inputs to see if your defenses hold.`,
+            }
           {
             id: 'ai-incident-response',
             title: 'AI Incident Response',

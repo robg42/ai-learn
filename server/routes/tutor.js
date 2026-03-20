@@ -55,12 +55,20 @@ Your role:
   res.flushHeaders();
 
   try {
-    const stream = await anthropic.messages.stream({
+    const modelParams = {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       system: systemPrompt,
       messages: messages.map(m => ({ role: m.role, content: String(m.content) })),
-    });
+    };
+
+    // Allow temperature override for temperature lab (clamp 0–1)
+    if (req.body.temperature !== undefined) {
+      const t = parseFloat(req.body.temperature);
+      if (!isNaN(t)) modelParams.temperature = Math.min(1, Math.max(0, t));
+    }
+
+    const stream = await anthropic.messages.stream(modelParams);
 
     for await (const chunk of stream) {
       if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {

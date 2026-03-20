@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, Award, BarChart2, BookOpen, Search, Plus,
-  CheckCircle, RefreshCw, X, ChevronDown, ChevronUp, Trophy, Medal, TrendingUp
+  CheckCircle, RefreshCw, X, ChevronDown, ChevronUp, Trophy, Medal, TrendingUp, Eye, EyeOff
 } from 'lucide-react';
+import { useProgress } from '../context/ProgressContext';
 import * as LucideIcons from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -31,6 +32,7 @@ const COLOR_PRESETS = [
 
 export default function Admin() {
   const { token } = useAuth();
+  const { previewAll, setPreviewAll } = useProgress();
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState([]);
   const [badges, setBadges] = useState([]);
@@ -236,9 +238,28 @@ export default function Admin() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-text-primary">Admin Dashboard</h1>
-        <p className="text-text-muted mt-1">Manage users, badges, and view platform analytics</p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">Admin Dashboard</h1>
+          <p className="text-text-muted mt-1">Manage users, badges, and view platform analytics</p>
+        </div>
+        {/* All-Seeing Eye toggle */}
+        <button
+          onClick={() => setPreviewAll(!previewAll)}
+          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+            previewAll
+              ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/20'
+              : 'bg-white/5 border-white/10 text-text-muted hover:border-white/20 hover:text-text-primary'
+          }`}
+          title={previewAll ? 'Disable all-seeing eye — restore normal unlock rules' : 'Enable all-seeing eye — unlock all content for preview'}
+        >
+          {previewAll ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          All-Seeing Eye
+          <div className={`w-8 h-4.5 rounded-full relative transition-colors ${previewAll ? 'bg-amber-500' : 'bg-white/10'}`}
+            style={{ width: '2rem', height: '1.1rem' }}>
+            <div className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white transition-all ${previewAll ? 'left-[calc(100%-0.975rem)]' : 'left-0.5'}`} />
+          </div>
+        </button>
       </div>
 
       {/* Tabs */}

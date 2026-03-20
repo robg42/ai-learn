@@ -34,6 +34,14 @@ export function ProgressProvider({ children }) {
   const [badges, setBadges] = useState([]);
   const [newBadges, setNewBadges] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [previewAll, setPreviewAllState] = useState(() => {
+    try { return localStorage.getItem('admin_preview_all') === 'true'; } catch { return false; }
+  });
+
+  const setPreviewAll = (val) => {
+    setPreviewAllState(val);
+    try { localStorage.setItem('admin_preview_all', val ? 'true' : 'false'); } catch {}
+  };
 
   const fetchProgress = useCallback(async () => {
     if (!token) return;
@@ -60,12 +68,14 @@ export function ProgressProvider({ children }) {
   const completedSet = new Set(progress.map(p => p.subsection_id));
 
   const isSectionUnlocked = useCallback((sectionId) => {
+    if (previewAll && user?.role === 'admin') return true;
     const rule = UNLOCK_RULES[sectionId];
     return rule ? rule(completedSet) : false;
-  }, [completedSet]);
+  }, [completedSet, previewAll, user]);
 
   // A course unlocks when the previous course is fully completed (or it's the first course)
   const isCourseUnlocked = useCallback((sectionId, courseId) => {
+    if (previewAll && user?.role === 'admin') return true;
     if (!isSectionUnlocked(sectionId)) return false;
     const section = SECTIONS.find(s => s.id === sectionId);
     if (!section) return false;
@@ -74,13 +84,14 @@ export function ProgressProvider({ children }) {
     if (idx === 0) return true;
     const prevCourse = courses[idx - 1];
     return prevCourse.subsections.every(s => completedSet.has(s.id));
-  }, [isSectionUnlocked, completedSet]);
+  }, [isSectionUnlocked, completedSet, previewAll, user]);
 
   // Sequential unlocking: within each course, lesson N unlocks only when lesson N-1 is complete.
   // The first lesson of each course unlocks when the course itself unlocks.
   // IMPORTANT: if a lesson is already in completedSet it is ALWAYS accessible regardless of
   // whether earlier lessons are present in the DB (guards against inconsistent data edge cases).
   const isSubsectionUnlocked = useCallback((sectionId, subsectionId) => {
+    if (previewAll && user?.role === 'admin') return true;
     // Already completed → always accessible (prevents lock-screen on previously-done lessons)
     if (completedSet.has(subsectionId)) return true;
     if (!isSectionUnlocked(sectionId)) return false;
@@ -96,7 +107,7 @@ export function ProgressProvider({ children }) {
       return completedSet.has(course.subsections[idx - 1].id); // else: previous must be done
     }
     return false;
-  }, [isSectionUnlocked, isCourseUnlocked, completedSet]);
+  }, [isSectionUnlocked, isCourseUnlocked, completedSet, previewAll, user]);
 
   const isSubsectionCompleted = useCallback((subsectionId) => {
     return completedSet.has(subsectionId);
@@ -168,6 +179,8 @@ export function ProgressProvider({ children }) {
       badges,
       newBadges,
       loading,
+      previewAll,
+      setPreviewAll,
       isSectionUnlocked,
       isCourseUnlocked,
       isSubsectionUnlocked,

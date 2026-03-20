@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ArrowRight } from 'lucide-react';
-import { ProgressProvider } from './context/ProgressContext';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { ProgressProvider, useProgress } from './context/ProgressContext';
 import Login from './components/auth/Login';
 import Navbar from './components/layout/Navbar';
 import Dashboard from './pages/Dashboard';
@@ -95,7 +95,39 @@ function AppContent() {
 
   return (
     <ProgressProvider>
-      <div className="min-h-screen bg-bg-dark text-text-primary">
+      <AppWithPreview
+        currentPage={currentPage}
+        handleSetPage={handleSetPage}
+        learnTarget={learnTarget}
+        setLearnTarget={setLearnTarget}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+        user={user}
+      />
+    </ProgressProvider>
+  );
+}
+
+function AppWithPreview({ currentPage, handleSetPage, learnTarget, setLearnTarget, darkMode, setDarkMode, user }) {
+  const { previewAll, setPreviewAll } = useProgress();
+
+  return (
+    <div className="min-h-screen bg-bg-dark text-text-primary">
+      {previewAll && user?.role === 'admin' && (
+        <div className="bg-amber-500/20 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-amber-300 text-xs font-medium">
+            <Eye className="w-3.5 h-3.5" />
+            All-Seeing Eye active — all content unlocked for admin preview
+          </div>
+          <button
+            onClick={() => setPreviewAll(false)}
+            className="text-xs text-amber-400 hover:text-amber-200 flex items-center gap-1 transition-colors"
+          >
+            <EyeOff className="w-3 h-3" /> Disable
+          </button>
+        </div>
+      )}
+      <div className={previewAll && user?.role === 'admin' ? '' : ''}>
         <Navbar
           currentPage={currentPage}
           setCurrentPage={handleSetPage}
@@ -117,7 +149,7 @@ function AppContent() {
 
         <BadgeModal />
       </div>
-    </ProgressProvider>
+    </div>
   );
 }
 

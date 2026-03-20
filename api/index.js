@@ -7,6 +7,7 @@ const badgeRoutes = require('../server/routes/badges');
 const adminRoutes = require('../server/routes/admin');
 const leaderboardRoutes = require('../server/routes/leaderboard');
 const notesRoutes = require('../server/routes/notes');
+const tutorRoutes = require('../server/routes/tutor');
 const authMiddleware = require('../server/middleware/auth');
 
 const app = express();
@@ -37,6 +38,7 @@ app.use('/api/badges', badgeRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/notes', notesRoutes);
+app.use('/api/tutor', tutorRoutes);
 
 app.get('/api/me', authMiddleware, async (req, res) => {
   try {

@@ -9,6 +9,7 @@ import Learn from './pages/Learn';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import Leaderboard from './pages/Leaderboard';
+import Labs from './pages/Labs';
 import BadgeModal from './components/badges/BadgeModal';
 
 function NamePrompt() {
@@ -144,6 +145,7 @@ function AppWithPreview({ currentPage, handleSetPage, learnTarget, setLearnTarge
           )}
           {currentPage === 'profile' && <Profile />}
           {currentPage === 'leaderboard' && <Leaderboard />}
+          {currentPage === 'labs' && <Labs />}
           {currentPage === 'admin' && user.role === 'admin' && <Admin />}
         </main>
 

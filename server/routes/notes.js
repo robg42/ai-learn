@@ -22,6 +22,9 @@ router.get('/:subsectionId', authMiddleware, async (req, res) => {
 router.put('/:subsectionId', authMiddleware, async (req, res) => {
   const { content } = req.body;
   if (content === undefined) return res.status(400).json({ error: 'content is required' });
+  if (typeof content !== 'string' || content.length > 50000) {
+    return res.status(400).json({ error: 'Note content must be a string under 50,000 characters' });
+  }
   try {
     await db.execute({
       sql: `INSERT INTO notes (user_id, subsection_id, content, updated_at)

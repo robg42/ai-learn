@@ -5,7 +5,10 @@ const { db } = require('../db');
 const { sendMagicLink } = require('../email');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'changeme_in_production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required. Refusing to start with insecure default.');
+}
 const BASE_URL = process.env.MAGIC_LINK_BASE_URL || 'http://localhost:3000';
 const TOKEN_TTL_MINUTES = 15;
 
@@ -24,7 +27,7 @@ router.post('/magic-request', async (req, res) => {
 
     // Unknown email — silently return success to avoid leaking whether an account exists
     if (!user) {
-      console.log(`[MAGIC LINK] Unknown email attempted: ${normalEmail}`);
+      console.log(`[MAGIC LINK] Unknown email attempted (account does not exist)`);
       return res.json({ message: 'Magic link sent' });
     }
 
@@ -106,9 +109,11 @@ router.patch('/me', require('../middleware/auth'), async (req, res) => {
   try {
     const { name } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
+    const safeName = name.trim().slice(0, 100);
+    if (safeName.length < 1) return res.status(400).json({ error: 'Name is required' });
     await db.execute({
       sql: 'UPDATE users SET name = ? WHERE id = ?',
-      args: [name.trim(), req.user.id]
+      args: [safeName, req.user.id]
     });
     res.json({ ok: true });
   } catch (err) {

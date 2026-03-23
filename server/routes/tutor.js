@@ -13,6 +13,20 @@ router.post('/chat', authMiddleware, async (req, res) => {
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages array required' });
   }
+  // Guard against cost abuse: limit conversation length and content size
+  const MAX_MESSAGES = 20;
+  const MAX_CONTENT_CHARS = 4000; // per message
+  if (messages.length > MAX_MESSAGES) {
+    return res.status(400).json({ error: `Maximum ${MAX_MESSAGES} messages per request` });
+  }
+  for (const m of messages) {
+    if (!m.role || !['user', 'assistant'].includes(m.role)) {
+      return res.status(400).json({ error: 'Each message must have role "user" or "assistant"' });
+    }
+    if (typeof m.content !== 'string' || m.content.length > MAX_CONTENT_CHARS) {
+      return res.status(400).json({ error: `Each message content must be a string under ${MAX_CONTENT_CHARS} characters` });
+    }
+  }
 
   const Anthropic = require('@anthropic-ai/sdk');
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });

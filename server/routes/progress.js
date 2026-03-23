@@ -13,6 +13,34 @@ const SECTION_NAMES = {
 const TOTAL_SUBSECTIONS = 54; // 18 per section × 3 sections
 const SUBSECTIONS_PER_SECTION = 18;
 
+// Allowlist of valid (sectionId → subsectionId[]) mappings
+const VALID_SUBSECTIONS = {
+  'llm-basics': [
+    'what-are-llms', 'transformers-and-tokens', 'lab-tokenizer', 'llm-providers', 'prompting-basics',
+    'lab-temperature', 'llm-capabilities', 'llm-use-cases',
+    'training-fundamentals', 'finetuning-and-rlhf', 'context-and-rag', 'lab-rag-quality',
+    'evaluating-llms', 'lab-hallucination-hunter',
+    'llm-api-integration', 'lab-prompt-playground', 'structured-outputs', 'multimodal-llms', 'llm-ops',
+    'lab-context-window',
+    'scaling-laws', 'interpretability', 'alignment-research', 'future-llms',
+  ],
+  'agentic-ai': [
+    'what-is-agentic-ai', 'agent-components', 'agent-tools', 'lab-agent-loop', 'agent-memory',
+    'multi-agent-systems', 'lab-multi-agent-debate', 'building-agents',
+    'agent-planning-algorithms', 'agent-failure-recovery', 'lab-broken-agent',
+    'human-in-the-loop', 'lab-hitl-design', 'agent-evaluation',
+    'production-agent-patterns', 'agentic-observability', 'agentic-by-domain', 'agent-security-in-depth',
+    'agent-architectures-research', 'corrigibility-and-control', 'multiagent-theory', 'future-of-agency',
+  ],
+  'ai-security': [
+    'ai-threat-landscape', 'prompt-injection', 'lab-injection-sandbox', 'data-privacy',
+    'ai-red-teaming', 'lab-red-team', 'secure-deployment', 'ai-governance',
+    'adversarial-inputs', 'model-extraction', 'lab-data-leakage', 'ai-supply-chain', 'jailbreaking-deep',
+    'secure-ai-architecture', 'lab-defensive-prompt', 'ai-incident-response', 'secure-ai-development', 'enterprise-ai-risk',
+    'ai-regulation-landscape', 'alignment-and-safety', 'catastrophic-risks', 'ai-security-futures',
+  ],
+};
+
 // GET /api/progress/me
 router.get('/me', authMiddleware, async (req, res) => {
   try {
@@ -53,6 +81,13 @@ router.post('/', authMiddleware, async (req, res) => {
   if (!sectionId || !subsectionId) {
     return res.status(400).json({ error: 'sectionId and subsectionId are required' });
   }
+  // Validate against allowlist
+  const validSubs = VALID_SUBSECTIONS[sectionId];
+  if (!validSubs || !validSubs.includes(subsectionId)) {
+    return res.status(400).json({ error: 'Invalid sectionId or subsectionId' });
+  }
+  // Clamp quizScore to valid range
+  const safeScore = quizScore != null ? Math.max(0, Math.min(100, parseInt(quizScore, 10) || 0)) : null;
 
   try {
     // Check if this is a NEW completion (not a retake)
@@ -67,7 +102,7 @@ router.post('/', authMiddleware, async (req, res) => {
             VALUES (?, ?, ?, ?)
             ON CONFLICT(user_id, subsection_id)
             DO UPDATE SET completed_at = CURRENT_TIMESTAMP, quiz_score = excluded.quiz_score`,
-      args: [req.user.id, sectionId, subsectionId, quizScore ?? null]
+      args: [req.user.id, sectionId, subsectionId, safeScore]
     });
 
     // Fire milestone emails only on genuinely new completions (not retakes)

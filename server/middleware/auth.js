@@ -9,7 +9,7 @@ async function authMiddleware(req, res, next) {
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'changeme_in_production');
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
     // Fetch current role from DB so role changes take effect without re-login
     const result = await db.execute({
       sql: 'SELECT id, email, name, role, last_seen_date FROM users WHERE id = ?',

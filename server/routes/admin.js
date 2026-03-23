@@ -14,6 +14,9 @@ router.post('/users', async (req, res) => {
   if (!email || !name) {
     return res.status(400).json({ error: 'email and name are required' });
   }
+  if (name.trim().length > 100) {
+    return res.status(400).json({ error: 'Name must be 100 characters or less' });
+  }
   if (!['user', 'admin'].includes(role)) {
     return res.status(400).json({ error: 'role must be user or admin' });
   }

@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const { db, initDb } = require('../server/db');
 const authRoutes = require('../server/routes/auth');
 const progressRoutes = require('../server/routes/progress');
@@ -13,11 +14,46 @@ const authMiddleware = require('../server/middleware/auth');
 const app = express();
 
 const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? [/\.vercel\.app$/, 'https://learn.robgregg.com']
+  ? [process.env.CORS_ORIGIN || 'https://learn.robgregg.com']
   : ['http://localhost:3000'];
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '100kb' })); // Limit request body size
+
+// Rate limiting — per-IP, per window
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                   // 10 magic link requests per 15 min per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+});
+const tutorLimiter = rateLimit({
+  windowMs: 60 * 1000,      // 1 minute
+  max: 20,                   // 20 AI calls per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Rate limit exceeded. Please wait a moment.' },
+});
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,                  // 100 total requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(globalLimiter);
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+  }
+  next();
+});
 
 // Initialize DB once per process (idempotent due to IF NOT EXISTS)
 const dbReady = initDb();
@@ -32,13 +68,13 @@ app.use(async (req, res, next) => {
   }
 });
 
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/badges', badgeRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/notes', notesRoutes);
-app.use('/api/tutor', tutorRoutes);
+app.use('/api/tutor', tutorLimiter, tutorRoutes);
 
 app.get('/api/me', authMiddleware, async (req, res) => {
   try {

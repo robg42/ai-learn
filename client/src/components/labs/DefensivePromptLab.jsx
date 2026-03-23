@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { Shield, Send, CheckCircle, XCircle, Lightbulb, Trophy } from 'lucide-react';
 
 const CHALLENGES = [
@@ -57,7 +56,6 @@ const CHALLENGES = [
 ];
 
 export default function DefensivePromptLab({ onComplete }) {
-  const { token } = useAuth();
   const [challengeIdx, setChallengeIdx] = useState(0);
   const [systemPrompts, setSystemPrompts] = useState({ 0: '', 1: '', 2: '' });
   const [results, setResults] = useState({});
@@ -79,7 +77,8 @@ export default function DefensivePromptLab({ onComplete }) {
     try {
       const res = await fetch('/api/tutor/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           messages: [{ role: 'user', content: attack.message }],
           lessonTitle: systemPrompt,
@@ -114,7 +113,8 @@ export default function DefensivePromptLab({ onComplete }) {
       const scorePrompt = challenge.scorePrompt(systemPrompt, attack.message, modelResponse);
       const scoreRes = await fetch('/api/tutor/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           messages: [{ role: 'user', content: scorePrompt }],
           mode: 'playground',

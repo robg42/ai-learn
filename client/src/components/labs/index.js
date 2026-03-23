@@ -10,5 +10,4 @@ export { default as BrokenAgentLab } from './BrokenAgentLab';
 export { default as MultiAgentDebate } from './MultiAgentDebate';
 export { default as HITLDesignLab } from './HITLDesignLab';
 export { default as RedTeamLab } from './RedTeamLab';
-export { default as DataLeakageLab } from './DataLeakageLab';
 export { default as DefensivePromptLab } from './DefensivePromptLab';

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { Users, Play, Edit3, RotateCcw } from 'lucide-react';
 
 const TOPICS = [
@@ -32,7 +31,6 @@ const TOPICS = [
 const ROUNDS = 3;
 
 export default function MultiAgentDebate({ onComplete }) {
-  const { token } = useAuth();
   const [topicIdx, setTopicIdx] = useState(0);
   const [agents, setAgents] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -65,7 +63,8 @@ export default function MultiAgentDebate({ onComplete }) {
     try {
       const res = await fetch('/api/tutor/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ messages, mode: 'tutor', lessonTitle: agent.persona, lessonContent: '' }),
       });
       if (!res.ok) return '(error)';

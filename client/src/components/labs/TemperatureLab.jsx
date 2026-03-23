@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { Thermometer, Play, RotateCcw, Lightbulb } from 'lucide-react';
 
 const PROMPTS = [
@@ -20,7 +19,6 @@ const TEMP_DESC = {
 };
 
 export default function TemperatureLab({ onComplete }) {
-  const { token } = useAuth();
   const [promptIdx, setPromptIdx] = useState(0);
   const [results, setResults] = useState({ 0: '', 0.5: '', 1.0: '' });
   const [loading, setLoading] = useState(false);
@@ -40,7 +38,8 @@ export default function TemperatureLab({ onComplete }) {
       try {
         const res = await fetch('/api/tutor/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             messages: [{ role: 'user', content: prompt }],
             mode: 'playground',

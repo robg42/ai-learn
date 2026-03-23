@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { Database, Search, AlertTriangle, Shield, Play, Eye } from 'lucide-react';
 
 const KNOWLEDGE_BASE = [
@@ -60,7 +59,6 @@ function safeRetrieve(query) {
 const SENSITIVITY_COLORS = { public: '#22c55e', internal: '#f59e0b', confidential: '#ef4444' };
 
 export default function DataLeakageLab({ onComplete }) {
-  const { token } = useAuth();
   const [activeQuery, setActiveQuery] = useState(null);
   const [mode, setMode] = useState('unsafe'); // unsafe | safe
   const [response, setResponse] = useState('');
@@ -89,7 +87,8 @@ export default function DataLeakageLab({ onComplete }) {
     try {
       const res = await fetch('/api/tutor/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], mode: 'playground' }),
       });
       const reader = res.body.getReader();

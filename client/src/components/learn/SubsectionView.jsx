@@ -3,40 +3,38 @@ import { Clock, CheckCircle, Lock, ChevronRight, Trophy, RefreshCw, FileText, Sa
 import KnowledgeCheck from './KnowledgeCheck';
 import TutorPanel from './TutorPanel';
 import { useProgress } from '../../context/ProgressContext';
-import { useAuth } from '../../context/AuthContext';
 import * as Visuals from '../visuals';
 import * as Labs from '../labs';
 
-function LessonNotes({ subsectionId, token }) {
+function LessonNotes({ subsectionId }) {
   const [content, setContent] = useState('');
   const [savedContent, setSavedContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
   const debounceRef = useRef(null);
 
   useEffect(() => {
-    if (!token) return;
     fetch(`/api/notes/${subsectionId}`, {
-      headers: { Authorization: `Bearer ${token}` }
+      credentials: 'include',
     })
       .then(r => r.json())
       .then(data => { setContent(data.content || ''); setSavedContent(data.content || ''); })
       .catch(() => {});
-  }, [subsectionId, token]);
+  }, [subsectionId]);
 
   const save = useCallback(async (text) => {
-    if (!token) return;
     setSaveStatus('saving');
     try {
       await fetch(`/api/notes/${subsectionId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ content: text }),
       });
       setSavedContent(text);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus(''), 2000);
     } catch { setSaveStatus(''); }
-  }, [subsectionId, token]);
+  }, [subsectionId]);
 
   const handleChange = (e) => {
     setContent(e.target.value);
@@ -68,7 +66,6 @@ function LessonNotes({ subsectionId, token }) {
 
 export default function SubsectionView({ section, subsection, onNext, onBackToOverview }) {
   const { isSubsectionCompleted, isSubsectionUnlocked, completeSubsection } = useProgress();
-  const { token } = useAuth();
   const [quizPassed, setQuizPassed] = useState(false);
   const [retaking, setRetaking] = useState(false);
   const [tutorOpen, setTutorOpen] = useState(false);
@@ -275,7 +272,7 @@ export default function SubsectionView({ section, subsection, onNext, onBackToOv
               )}
 
               {/* Per-lesson notes */}
-              <LessonNotes subsectionId={subsection.id} token={token} />
+              <LessonNotes subsectionId={subsection.id} />
             </>
           )}
         </div>

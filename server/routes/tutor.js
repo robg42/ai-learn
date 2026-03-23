@@ -1,9 +1,20 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
 
+// Per-user rate limit (keyed by user ID, applied after auth)
+const perUserLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,                   // 10 AI calls per minute per user
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `tutor-user-${req.user?.id || req.ip}`,
+  message: { error: 'Rate limit exceeded. Please wait a moment.' },
+});
+
 // POST /api/tutor/chat — streaming AI tutor using Claude Haiku
-router.post('/chat', authMiddleware, async (req, res) => {
+router.post('/chat', authMiddleware, perUserLimiter, async (req, res) => {
   const { messages, lessonTitle, lessonContent, mode } = req.body;
 
   if (!process.env.ANTHROPIC_API_KEY) {

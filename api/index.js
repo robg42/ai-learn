@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { db, initDb } = require('../server/db');
 const authRoutes = require('../server/routes/auth');
@@ -18,6 +20,7 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
   : ['http://localhost:3000'];
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(cookieParser());
 app.use(express.json({ limit: '100kb' })); // Limit request body size
 
 // Rate limiting — per-IP, per window
@@ -44,16 +47,24 @@ const globalLimiter = rateLimit({
 
 app.use(globalLimiter);
 
-// Security headers
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
-  }
-  next();
-});
+// Security headers via helmet + CSP
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],  // needed for inline styles (Recharts, Lucide, Tailwind)
+      imgSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // allow Vercel embedding
+}));
 
 // Initialize DB once per process (idempotent due to IF NOT EXISTS)
 const dbReady = initDb();

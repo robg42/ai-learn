@@ -31,7 +31,7 @@ const COLOR_PRESETS = [
 ];
 
 export default function Admin() {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const { previewAll, setPreviewAll } = useProgress();
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState([]);
@@ -76,7 +76,8 @@ export default function Admin() {
     try {
       const res = await fetch(`/api/admin/users/${userId}/leaderboard`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ [field]: value }),
       });
       const data = await res.json();
@@ -93,7 +94,8 @@ export default function Admin() {
     try {
       const res = await fetch(`/api/admin/users/${userId}/role`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ role: newRole }),
       });
       const data = await res.json();
@@ -110,7 +112,7 @@ export default function Admin() {
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: 'include',
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -128,9 +130,9 @@ export default function Admin() {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
         ...options.headers,
       },
+      credentials: 'include',
     });
     return res.json();
   };

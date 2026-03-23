@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Shield, AlertTriangle, CheckCircle, Send, Eye, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 
 const CHALLENGES = [
   {
@@ -52,7 +51,6 @@ const CHALLENGES = [
 ];
 
 export default function InjectionSandbox({ onComplete }) {
-  const { token } = useAuth();
   const [currentChallenge, setCurrentChallenge] = useState(0);
   const [messages, setMessages] = useState([[], [], []]);
   const [inputs, setInputs] = useState(['', '', '']);
@@ -87,7 +85,8 @@ export default function InjectionSandbox({ onComplete }) {
     try {
       const res = await fetch('/api/tutor/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           messages: newMessages[currentChallenge],
           mode: 'injection',

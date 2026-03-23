@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { Layers, Play, Info } from 'lucide-react';
 
 // The "needle" fact we'll hide in the haystack
@@ -38,7 +37,6 @@ function buildDocument(needlePos) {
 }
 
 export default function ContextWindowLab({ onComplete }) {
-  const { token } = useAuth();
   const [selectedPos, setSelectedPos] = useState(null);
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
@@ -59,7 +57,8 @@ export default function ContextWindowLab({ onComplete }) {
     try {
       const res = await fetch('/api/tutor/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           messages: [{ role: 'user', content: prompt }],
           mode: 'playground',

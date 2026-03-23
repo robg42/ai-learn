@@ -12,6 +12,11 @@ if (!JWT_SECRET) {
 const BASE_URL = process.env.MAGIC_LINK_BASE_URL || 'http://localhost:3000';
 const TOKEN_TTL_MINUTES = 15;
 
+/** Hash a magic link token with SHA-256 for storage (tokens are high-entropy, no salt needed) */
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
 // POST /api/auth/magic-request
 router.post('/magic-request', async (req, res) => {
   try {
@@ -37,11 +42,12 @@ router.post('/magic-request', async (req, res) => {
     });
 
     const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + TOKEN_TTL_MINUTES * 60 * 1000).toISOString();
 
     await db.execute({
       sql: 'INSERT INTO magic_link_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
-      args: [user.id, token, expiresAt]
+      args: [user.id, tokenHash, expiresAt]
     });
 
     const magicLink = `${BASE_URL}?token=${token}`;
@@ -60,9 +66,10 @@ router.post('/magic-verify', async (req, res) => {
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: 'Token is required' });
 
+    const tokenHash = hashToken(token);
     const recordResult = await db.execute({
       sql: 'SELECT * FROM magic_link_tokens WHERE token = ?',
-      args: [token]
+      args: [tokenHash]
     });
     const record = recordResult.rows[0] ? { ...recordResult.rows[0] } : null;
 
@@ -97,7 +104,15 @@ router.post('/magic-verify', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ token: sessionToken, user });
+    res.cookie('session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
+    res.json({ user });
   } catch (err) {
     console.error('Magic verify error:', err);
     res.status(500).json({ error: 'Server error' });

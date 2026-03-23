@@ -1,8 +1,9 @@
 const express = require('express');
-const { db } = require('../db');
+const { db, audit } = require('../db');
 const authMiddleware = require('../middleware/auth');
 const adminOnly = require('../middleware/adminOnly');
 const { sendWelcomeEmail } = require('../email');
+const { VALID_SUBSECTIONS } = require('./progress');
 
 const router = express.Router();
 
@@ -43,6 +44,7 @@ router.post('/users', async (req, res) => {
     const created = { ...newUser.rows[0] };
     // Fire welcome email (non-blocking)
     sendWelcomeEmail({ to: created.email, name: created.name }).catch(() => {});
+    audit(req.user.id, 'user.create', 'user', created.id, `email=${created.email} role=${role}`);
     res.status(201).json(created);
   } catch (err) {
     console.error('Create user error:', err);
@@ -102,9 +104,9 @@ router.get('/users', async (req, res) => {
       lastActive: row.last_active || null,
       badges: badgesByUser[row.id] || [],
       progressSummary: {
-        'llm-basics':  { total: 18, completed: Number(row.llm_completed  || 0) },
-        'agentic-ai':  { total: 18, completed: Number(row.agentic_completed || 0) },
-        'ai-security': { total: 18, completed: Number(row.security_completed || 0) },
+        'llm-basics':  { total: VALID_SUBSECTIONS['llm-basics'].length, completed: Number(row.llm_completed  || 0) },
+        'agentic-ai':  { total: VALID_SUBSECTIONS['agentic-ai'].length, completed: Number(row.agentic_completed || 0) },
+        'ai-security': { total: VALID_SUBSECTIONS['ai-security'].length, completed: Number(row.security_completed || 0) },
       },
     }));
 
@@ -207,6 +209,7 @@ router.post('/badges/award', async (req, res) => {
       sql: `INSERT OR IGNORE INTO badge_awards (user_id, badge_id, awarded_by) VALUES (?, ?, ?)`,
       args: [userId, badgeId, req.user.id]
     });
+    audit(req.user.id, 'badge.award', 'user', userId, `badge_id=${badgeId}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Badge award error:', err);
@@ -226,6 +229,7 @@ router.patch('/users/:id/leaderboard', async (req, res) => {
     if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update' });
     args.push(id);
     await db.execute({ sql: `UPDATE users SET ${sets.join(', ')} WHERE id = ?`, args });
+    audit(req.user.id, 'user.leaderboard', 'user', id, JSON.stringify({ showOnLeaderboard, canViewLeaderboard }));
     res.json({ ok: true });
   } catch (err) {
     console.error('PATCH /admin/users/:id/leaderboard error:', err);
@@ -259,6 +263,7 @@ router.patch('/users/:id/role', async (req, res) => {
     }
 
     await db.execute({ sql: 'UPDATE users SET role = ? WHERE id = ?', args: [role, id] });
+    audit(req.user.id, 'user.role_change', 'user', id, `new_role=${role} old_role=${userResult.rows[0].role}`);
     res.json({ ok: true, role });
   } catch (err) {
     console.error('PATCH /admin/users/:id/role error:', err);
@@ -271,7 +276,7 @@ router.delete('/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (parseInt(id) === req.user.id) return res.status(400).json({ error: 'You cannot delete your own account' });
-    const userResult = await db.execute({ sql: 'SELECT id, role FROM users WHERE id = ?', args: [id] });
+    const userResult = await db.execute({ sql: 'SELECT id, email, role FROM users WHERE id = ?', args: [id] });
     if (!userResult.rows[0]) return res.status(404).json({ error: 'User not found' });
 
     // Prevent deleting the last admin
@@ -284,13 +289,16 @@ router.delete('/users/:id', async (req, res) => {
         return res.status(400).json({ error: 'Cannot delete the last admin account' });
       }
     }
+    const deletedEmail = userResult.rows[0].email || 'unknown';
     await db.batch([
       { sql: 'DELETE FROM progress WHERE user_id = ?', args: [id] },
       { sql: 'DELETE FROM badge_awards WHERE user_id = ?', args: [id] },
       { sql: 'DELETE FROM magic_link_tokens WHERE user_id = ?', args: [id] },
       { sql: 'DELETE FROM password_reset_tokens WHERE user_id = ?', args: [id] },
+      { sql: 'DELETE FROM notes WHERE user_id = ?', args: [id] },
       { sql: 'DELETE FROM users WHERE id = ?', args: [id] },
     ], 'write');
+    audit(req.user.id, 'user.delete', 'user', id, `email=${deletedEmail}`);
     res.json({ ok: true });
   } catch (err) {
     console.error('DELETE /admin/users/:id error:', err);
@@ -318,7 +326,7 @@ router.get('/analytics', async (req, res) => {
     const sectionCompletionResult = await db.execute({
       sql: `SELECT section_id,
                    COUNT(DISTINCT user_id) as users_started,
-                   COUNT(DISTINCT CASE WHEN sub_count >= 18 THEN user_id END) as users_completed
+                   COUNT(DISTINCT CASE WHEN sub_count >= ${Math.min(...Object.values(VALID_SUBSECTIONS).map(s => s.length))} THEN user_id END) as users_completed
             FROM (
               SELECT user_id, section_id, COUNT(*) as sub_count
               FROM progress
@@ -354,7 +362,7 @@ router.get('/analytics', async (req, res) => {
       args: []
     });
 
-    const totalSubsections = 54; // 3 sections × 18 subsections each
+    const totalSubsections = Object.values(VALID_SUBSECTIONS).reduce((sum, s) => sum + s.length, 0);
     const avgRaw = avgCompletionResult.rows[0]?.avg;
 
     res.json({

@@ -1,9 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Send, Bot, User, Sparkles, RotateCcw } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 
 export default function TutorPanel({ subsection, section, onClose }) {
-  const { token } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
@@ -39,8 +37,8 @@ export default function TutorPanel({ subsection, section, onClose }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           messages: updatedMessages,
           lessonTitle: subsection?.title || '',
@@ -99,7 +97,7 @@ export default function TutorPanel({ subsection, section, onClose }) {
       setStreaming(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [messages, streaming, token, subsection]);
+  }, [messages, streaming, subsection]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {

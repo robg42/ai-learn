@@ -10,8 +10,16 @@ const SECTION_NAMES = {
   'agentic-ai': 'Agentic AI',
   'ai-security': 'AI Security',
 };
-const TOTAL_SUBSECTIONS = 54; // 18 per section × 3 sections
-const SUBSECTIONS_PER_SECTION = 18;
+// Computed from VALID_SUBSECTIONS after it's defined (see below)
+let TOTAL_SUBSECTIONS;
+let SUBSECTIONS_PER_SECTION_MAP;
+
+// Optional labs — don't block sequential progress
+const OPTIONAL_SUBSECTIONS = new Set([
+  'lab-temperature', 'lab-rag-quality', 'lab-hallucination-hunter', 'lab-context-window',
+  'lab-multi-agent-debate', 'lab-broken-agent', 'lab-hitl-design',
+  'lab-red-team', 'lab-defensive-prompt',
+]);
 
 // Allowlist of valid (sectionId → subsectionId[]) mappings
 const VALID_SUBSECTIONS = {
@@ -35,11 +43,19 @@ const VALID_SUBSECTIONS = {
   'ai-security': [
     'ai-threat-landscape', 'prompt-injection', 'lab-injection-sandbox', 'data-privacy',
     'ai-red-teaming', 'lab-red-team', 'secure-deployment', 'ai-governance',
-    'adversarial-inputs', 'model-extraction', 'lab-data-leakage', 'ai-supply-chain', 'jailbreaking-deep',
+    'adversarial-inputs', 'model-extraction', 'ai-supply-chain', 'jailbreaking-deep',
     'secure-ai-architecture', 'lab-defensive-prompt', 'ai-incident-response', 'secure-ai-development', 'enterprise-ai-risk',
     'ai-regulation-landscape', 'alignment-and-safety', 'catastrophic-risks', 'ai-security-futures',
   ],
 };
+
+// Compute subsection counts from the canonical VALID_SUBSECTIONS
+SUBSECTIONS_PER_SECTION_MAP = {};
+TOTAL_SUBSECTIONS = 0;
+for (const [sectionId, subs] of Object.entries(VALID_SUBSECTIONS)) {
+  SUBSECTIONS_PER_SECTION_MAP[sectionId] = subs.length;
+  TOTAL_SUBSECTIONS += subs.length;
+}
 
 // GET /api/progress/me
 router.get('/me', authMiddleware, async (req, res) => {
@@ -97,6 +113,53 @@ router.post('/', authMiddleware, async (req, res) => {
     });
     const isNew = !existing.rows[0];
 
+    // --- Server-side prerequisite check (skip for retakes) ---
+    if (isNew) {
+      const allProgress = await db.execute({
+        sql: 'SELECT subsection_id FROM progress WHERE user_id = ?',
+        args: [req.user.id]
+      });
+      const completedSet = new Set(allProgress.rows.map(r => r.subsection_id));
+
+      // Cross-section unlock: agentic needs 'what-are-llms', security needs 'what-is-agentic-ai'
+      const sectionPrereqs = {
+        'agentic-ai': 'what-are-llms',
+        'ai-security': 'what-is-agentic-ai',
+      };
+      const sectionPrereq = sectionPrereqs[sectionId];
+      if (sectionPrereq && !completedSet.has(sectionPrereq)) {
+        return res.status(403).json({ error: 'Prerequisite section not unlocked' });
+      }
+
+      // Within-section sequential unlock: previous required subsection must be done
+      // Optional labs can be skipped — they don't block and aren't required as prereqs
+      const sectionOrder = validSubs;
+      const idx = sectionOrder.indexOf(subsectionId);
+      if (idx > 0) {
+        if (OPTIONAL_SUBSECTIONS.has(subsectionId)) {
+          // Optional lab: find the most recent required lesson before it
+          for (let k = idx - 1; k >= 0; k--) {
+            if (!OPTIONAL_SUBSECTIONS.has(sectionOrder[k])) {
+              if (!completedSet.has(sectionOrder[k])) {
+                return res.status(403).json({ error: 'Complete the previous lesson first' });
+              }
+              break;
+            }
+          }
+        } else {
+          // Required lesson: find the previous required lesson (skip optional ones)
+          for (let k = idx - 1; k >= 0; k--) {
+            if (!OPTIONAL_SUBSECTIONS.has(sectionOrder[k])) {
+              if (!completedSet.has(sectionOrder[k])) {
+                return res.status(403).json({ error: 'Complete the previous lesson first' });
+              }
+              break;
+            }
+          }
+        }
+      }
+    }
+
     await db.execute({
       sql: `INSERT INTO progress (user_id, section_id, subsection_id, quiz_score)
             VALUES (?, ?, ?, ?)
@@ -136,7 +199,7 @@ async function checkMilestones(userId, sectionId) {
 
   // Section completion milestone
   const sectionRows = progressResult.rows.filter(r => r.section_id === sectionId);
-  if (sectionRows.length === SUBSECTIONS_PER_SECTION) {
+  if (sectionRows.length === SUBSECTIONS_PER_SECTION_MAP[sectionId]) {
     const sectionName = SECTION_NAMES[sectionId] || sectionId;
     await sendMilestoneEmail({
       to: user.email,
@@ -158,3 +221,4 @@ async function checkMilestones(userId, sectionId) {
 }
 
 module.exports = router;
+module.exports.VALID_SUBSECTIONS = VALID_SUBSECTIONS;

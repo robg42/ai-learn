@@ -137,4 +137,15 @@ router.patch('/me', require('../middleware/auth'), async (req, res) => {
   }
 });
 
+// POST /api/auth/logout — clear the session cookie
+router.post('/logout', (req, res) => {
+  res.clearCookie('session', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+  });
+  res.json({ ok: true });
+});
+
 module.exports = router;

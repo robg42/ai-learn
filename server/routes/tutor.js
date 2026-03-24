@@ -15,7 +15,8 @@ const perUserLimiter = rateLimit({
 
 // POST /api/tutor/chat — streaming AI tutor using Claude Haiku
 router.post('/chat', authMiddleware, perUserLimiter, async (req, res) => {
-  const { messages, lessonTitle, lessonContent, mode } = req.body;
+  const { messages, lessonTitle: rawTitle, lessonContent, mode } = req.body;
+  const lessonTitle = typeof rawTitle === 'string' ? rawTitle.slice(0, 200) : '';
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(503).json({ error: 'AI tutor not configured — set ANTHROPIC_API_KEY' });

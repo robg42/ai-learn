@@ -23,12 +23,11 @@ router.get('/', async (req, res) => {
       args: []
     });
 
-    const leaderboard = result.rows.map(row => ({
-      id: row.id,
+    const leaderboard = result.rows.map((row, idx) => ({
+      rank: idx + 1,
       name: row.name,
       lessonsCompleted: Number(row.lessons_completed || 0),
       badgesEarned: Number(row.badges_earned || 0),
-      lastActive: row.last_active || null,
     }));
 
     res.json(leaderboard);

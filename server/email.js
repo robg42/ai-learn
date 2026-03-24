@@ -1,5 +1,16 @@
 const nodemailer = require('nodemailer');
 
+/** Escape HTML special characters to prevent injection in email templates */
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function getTransporter() {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
@@ -19,10 +30,14 @@ async function sendMagicLink({ to, name, magicLink, token, ttlMinutes }) {
   const transporter = getTransporter();
 
   if (!transporter) {
-    console.log(`\n[MAGIC LINK] No Gmail credentials — logging token instead`);
-    console.log(`[MAGIC LINK] User: ${to} (${name})`);
-    console.log(`[MAGIC LINK] Link (expires in ${ttlMinutes} min): ${magicLink}`);
-    console.log(`[MAGIC LINK] Token only: ${token}\n`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`\n[MAGIC LINK] No Gmail credentials — logging token instead`);
+      console.log(`[MAGIC LINK] User: ${to} (${name})`);
+      console.log(`[MAGIC LINK] Link (expires in ${ttlMinutes} min): ${magicLink}`);
+      console.log(`[MAGIC LINK] Token only: ${token}\n`);
+    } else {
+      console.warn(`[MAGIC LINK] No Gmail credentials configured — magic link for ${to} could not be sent. Token redacted.`);
+    }
     return;
   }
 
@@ -37,7 +52,7 @@ async function sendMagicLink({ to, name, magicLink, token, ttlMinutes }) {
         <h1 style="margin: 0; font-size: 22px; color: #f8fafc;">Your AI Learn sign-in link</h1>
       </div>
 
-      <p style="color: #94a3b8; margin: 0 0 24px;">Hi ${name},</p>
+      <p style="color: #94a3b8; margin: 0 0 24px;">Hi ${esc(name)},</p>
       <p style="color: #94a3b8; margin: 0 0 32px;">Click the button below to sign in. This link expires in ${ttlMinutes} minutes and can only be used once.</p>
 
       <div style="text-align: center; margin-bottom: 32px;">
@@ -65,7 +80,9 @@ async function sendMagicLink({ to, name, magicLink, token, ttlMinutes }) {
     console.log(`[email] Magic link sent to ${to}`);
   } catch (err) {
     console.error('[email] Failed to send magic link email:', err.message);
-    console.log(`[MAGIC LINK FALLBACK] Token for ${to}: ${token}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[MAGIC LINK FALLBACK] Token for ${to}: ${token}`);
+    }
   }
 }
 
@@ -89,7 +106,7 @@ async function sendWelcomeEmail({ to, name }) {
         </div>
         <h1 style="margin: 0; font-size: 22px; color: #f8fafc;">Welcome to AI Learn!</h1>
       </div>
-      <p style="color: #94a3b8; margin: 0 0 16px;">Hi ${name},</p>
+      <p style="color: #94a3b8; margin: 0 0 16px;">Hi ${esc(name)},</p>
       <p style="color: #94a3b8; margin: 0 0 24px;">Your account has been created. Sign in anytime using your magic link to start learning about LLMs, Agentic AI, and AI Security.</p>
       <div style="text-align: center; margin-bottom: 32px;">
         <a href="${appUrl}" style="display: inline-block; background: #7c3aed; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
@@ -135,10 +152,10 @@ async function sendMilestoneEmail({ to, name, milestoneTitle, milestoneBody }) {
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #0f0f13; color: #e2e8f0; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 32px;">
         <div style="font-size: 48px; margin-bottom: 12px;">🏆</div>
-        <h1 style="margin: 0; font-size: 22px; color: #f8fafc;">${milestoneTitle}</h1>
+        <h1 style="margin: 0; font-size: 22px; color: #f8fafc;">${esc(milestoneTitle)}</h1>
       </div>
-      <p style="color: #94a3b8; margin: 0 0 16px;">Hi ${name},</p>
-      <p style="color: #94a3b8; margin: 0 0 32px;">${milestoneBody}</p>
+      <p style="color: #94a3b8; margin: 0 0 16px;">Hi ${esc(name)},</p>
+      <p style="color: #94a3b8; margin: 0 0 32px;">${esc(milestoneBody)}</p>
       <div style="text-align: center; margin-bottom: 32px;">
         <a href="${appUrl}" style="display: inline-block; background: #7c3aed; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
           Keep Learning

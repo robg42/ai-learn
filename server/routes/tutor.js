@@ -1,9 +1,20 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
 
+// Per-user rate limit (keyed by user ID, applied after auth)
+const perUserLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,                   // 10 AI calls per minute per user
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `tutor-user-${req.user?.id || req.ip}`,
+  message: { error: 'Rate limit exceeded. Please wait a moment.' },
+});
+
 // POST /api/tutor/chat — streaming AI tutor using Claude Haiku
-router.post('/chat', authMiddleware, async (req, res) => {
+router.post('/chat', authMiddleware, perUserLimiter, async (req, res) => {
   const { messages, lessonTitle, lessonContent, mode } = req.body;
 
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -12,6 +23,20 @@ router.post('/chat', authMiddleware, async (req, res) => {
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages array required' });
+  }
+  // Guard against cost abuse: limit conversation length and content size
+  const MAX_MESSAGES = 20;
+  const MAX_CONTENT_CHARS = 4000; // per message
+  if (messages.length > MAX_MESSAGES) {
+    return res.status(400).json({ error: `Maximum ${MAX_MESSAGES} messages per request` });
+  }
+  for (const m of messages) {
+    if (!m.role || !['user', 'assistant'].includes(m.role)) {
+      return res.status(400).json({ error: 'Each message must have role "user" or "assistant"' });
+    }
+    if (typeof m.content !== 'string' || m.content.length > MAX_CONTENT_CHARS) {
+      return res.status(400).json({ error: `Each message content must be a string under ${MAX_CONTENT_CHARS} characters` });
+    }
   }
 
   const Anthropic = require('@anthropic-ai/sdk');
@@ -55,12 +80,20 @@ Your role:
   res.flushHeaders();
 
   try {
-    const stream = await anthropic.messages.stream({
+    const modelParams = {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       system: systemPrompt,
       messages: messages.map(m => ({ role: m.role, content: String(m.content) })),
-    });
+    };
+
+    // Allow temperature override for temperature lab (clamp 0–1)
+    if (req.body.temperature !== undefined) {
+      const t = parseFloat(req.body.temperature);
+      if (!isNaN(t)) modelParams.temperature = Math.min(1, Math.max(0, t));
+    }
+
+    const stream = await anthropic.messages.stream(modelParams);
 
     for await (const chunk of stream) {
       if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {

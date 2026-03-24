@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { CheckCircle, XCircle, Send, RotateCcw, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 
 const CHALLENGES = [
   {
@@ -90,7 +89,6 @@ const CHALLENGES = [
 ];
 
 export default function PromptPlayground({ onComplete }) {
-  const { token } = useAuth();
   const [currentIdx, setCurrentIdx] = useState(0);
   const [prompts, setPrompts] = useState(Array(CHALLENGES.length).fill(''));
   const [outputs, setOutputs] = useState(Array(CHALLENGES.length).fill(''));
@@ -115,7 +113,8 @@ export default function PromptPlayground({ onComplete }) {
     try {
       const res = await fetch('/api/tutor/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           messages: [{ role: 'user', content: fullPrompt }],
           mode: 'playground',

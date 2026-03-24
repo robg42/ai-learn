@@ -29,7 +29,7 @@ const UNLOCK_RULES = {
 };
 
 export function ProgressProvider({ children }) {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [progress, setProgress] = useState([]);
   const [badges, setBadges] = useState([]);
   const [newBadges, setNewBadges] = useState([]);
@@ -44,11 +44,11 @@ export function ProgressProvider({ children }) {
   };
 
   const fetchProgress = useCallback(async () => {
-    if (!token) return;
+    if (!user) return;
     setLoading(true);
     try {
       const res = await fetch('/api/me', {
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -59,7 +59,7 @@ export function ProgressProvider({ children }) {
       console.error('Failed to fetch progress:', err);
     }
     setLoading(false);
-  }, [token]);
+  }, [user]);
 
   useEffect(() => {
     if (user) fetchProgress();
@@ -83,7 +83,7 @@ export function ProgressProvider({ children }) {
     const idx = courses.findIndex(c => c.id === courseId);
     if (idx === 0) return true;
     const prevCourse = courses[idx - 1];
-    return prevCourse.subsections.every(s => completedSet.has(s.id));
+    return prevCourse.subsections.filter(s => !s.optional).every(s => completedSet.has(s.id));
   }, [isSectionUnlocked, completedSet, previewAll, user]);
 
   // Sequential unlocking: within each course, lesson N unlocks only when lesson N-1 is complete.
@@ -104,7 +104,24 @@ export function ProgressProvider({ children }) {
       if (idx === -1) continue;
       if (!isCourseUnlocked(sectionId, course.id)) return false;
       if (idx === 0) return true; // first lesson in course: always accessible when course unlocks
-      return completedSet.has(course.subsections[idx - 1].id); // else: previous must be done
+      // Optional labs don't block progress — find the previous required lesson
+      const sub = course.subsections[idx];
+      if (sub.optional) {
+        // Optional labs unlock when the most recent required lesson before them is done
+        for (let k = idx - 1; k >= 0; k--) {
+          if (!course.subsections[k].optional) {
+            return completedSet.has(course.subsections[k].id);
+          }
+        }
+        return true; // no required lesson before it
+      }
+      // Required lesson: previous required lesson must be done (skip optional ones)
+      for (let k = idx - 1; k >= 0; k--) {
+        if (!course.subsections[k].optional) {
+          return completedSet.has(course.subsections[k].id);
+        }
+      }
+      return true;
     }
     return false;
   }, [isSectionUnlocked, isCourseUnlocked, completedSet, previewAll, user]);
@@ -114,23 +131,19 @@ export function ProgressProvider({ children }) {
   }, [completedSet]);
 
   const completeSubsection = useCallback(async (sectionId, subsectionId, quizScore) => {
-    if (!token) return;
+    if (!user) return;
     try {
       await fetch('/api/progress', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ sectionId, subsectionId, quizScore })
       });
 
       const badgeRes = await fetch('/api/badges/auto-check', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ subsectionId })
       });
       const badgeData = await badgeRes.json();
@@ -143,7 +156,7 @@ export function ProgressProvider({ children }) {
     } catch (err) {
       console.error('Failed to complete subsection:', err);
     }
-  }, [token, fetchProgress]);
+  }, [user, fetchProgress]);
 
   const clearNewBadges = useCallback(() => setNewBadges([]), []);
 
@@ -151,8 +164,9 @@ export function ProgressProvider({ children }) {
     const section = SECTIONS.find(s => s.id === sectionId);
     if (!section) return { completed: 0, total: 0, percent: 0 };
     const all = getAllSubsections(section);
-    const total = all.length;
-    const completed = all.filter(s => completedSet.has(s.id)).length;
+    const required = all.filter(s => !s.optional);
+    const total = required.length;
+    const completed = required.filter(s => completedSet.has(s.id)).length;
     return { completed, total, percent: total > 0 ? Math.round((completed / total) * 100) : 0 };
   }, [completedSet]);
 
@@ -162,14 +176,16 @@ export function ProgressProvider({ children }) {
     const courses = getSectionCourses(section);
     const course = courses.find(c => c.id === courseId);
     if (!course) return { completed: 0, total: 0, percent: 0 };
-    const total = course.subsections.length;
-    const completed = course.subsections.filter(s => completedSet.has(s.id)).length;
+    const required = course.subsections.filter(s => !s.optional);
+    const total = required.length;
+    const completed = required.filter(s => completedSet.has(s.id)).length;
     return { completed, total, percent: total > 0 ? Math.round((completed / total) * 100) : 0 };
   }, [completedSet]);
 
   const getOverallProgress = useCallback(() => {
-    const total = SECTIONS.reduce((sum, s) => sum + getAllSubsections(s).length, 0);
-    const completed = completedSet.size;
+    const allRequired = SECTIONS.flatMap(s => getAllSubsections(s).filter(sub => !sub.optional));
+    const total = allRequired.length;
+    const completed = allRequired.filter(s => completedSet.has(s.id)).length;
     return { completed, total, percent: total > 0 ? Math.round((completed / total) * 100) : 0 };
   }, [completedSet]);
 

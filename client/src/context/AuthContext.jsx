@@ -5,18 +5,18 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(null);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // Clear the HttpOnly cookie by calling a logout endpoint or letting it expire
+    // Also clear legacy localStorage token if present
     localStorage.removeItem('ai_learn_token');
-    setToken(null);
     setUser(null);
   }, []);
 
-  const fetchMe = useCallback(async (t) => {
+  const fetchMe = useCallback(async () => {
     try {
       const res = await fetch('/api/me', {
-        headers: { Authorization: `Bearer ${t}` }
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Invalid token');
       const data = await res.json();
@@ -27,26 +27,22 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('ai_learn_token');
-    if (!storedToken) {
-      setLoading(false);
-      return;
-    }
-    setToken(storedToken);
-    fetchMe(storedToken).then(data => {
+    // Check session via HttpOnly cookie (sent automatically)
+    fetchMe().then(data => {
       if (data) {
         setUser(data.user);
-      } else {
-        logout();
       }
+      // Clean up legacy localStorage token
+      localStorage.removeItem('ai_learn_token');
       setLoading(false);
     });
-  }, [fetchMe, logout]);
+  }, [fetchMe]);
 
   const requestMagicLink = useCallback(async (email, name) => {
     const res = await fetch('/api/auth/magic-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ email, name })
     });
     const data = await res.json();
@@ -55,10 +51,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const updateName = useCallback(async (name) => {
-    const t = localStorage.getItem('ai_learn_token');
     const res = await fetch('/api/auth/me', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ name })
     });
     const data = await res.json();
@@ -71,18 +67,18 @@ export function AuthProvider({ children }) {
     const res = await fetch('/api/auth/magic-verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ token: magicToken })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Invalid or expired magic link');
-    localStorage.setItem('ai_learn_token', data.token);
-    setToken(data.token);
+    // Cookie is set by the server — no need to store token client-side
     setUser(data.user);
     return data;
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, requestMagicLink, verifyMagicLink, updateName, logout }}>
+    <AuthContext.Provider value={{ user, loading, requestMagicLink, verifyMagicLink, updateName, logout }}>
       {children}
     </AuthContext.Provider>
   );

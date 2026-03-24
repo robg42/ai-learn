@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Brain, LayoutDashboard, BookOpen, Shield, User,
+  Brain, LayoutDashboard, BookOpen, FlaskConical, User,
   Settings, LogOut, Menu, X, Sun, Moon, Trophy
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -13,6 +13,7 @@ export default function Navbar({ currentPage, setCurrentPage, darkMode, setDarkM
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'learn', label: 'Learn', icon: BookOpen },
+    { id: 'labs', label: 'Labs', icon: FlaskConical },
     // Leaderboard shown unless admin has explicitly disabled it for this user
     ...(user?.can_view_leaderboard !== 0 ? [{ id: 'leaderboard', label: 'Leaderboard', icon: Trophy }] : []),
     ...(user?.role === 'admin' ? [{ id: 'admin', label: 'Admin', icon: Settings }] : []),

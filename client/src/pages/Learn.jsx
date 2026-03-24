@@ -262,7 +262,10 @@ export default function Learn({ initialTarget }) {
                           }
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="truncate text-xs">{sub.title}</div>
+                          <div className="truncate text-xs flex items-center gap-1.5">
+                            {sub.title}
+                            {sub.optional && <span className="text-[9px] px-1 py-0.5 rounded bg-white/5 text-text-muted/50 flex-shrink-0">Optional</span>}
+                          </div>
                           <div className="text-[10px] opacity-60 mt-0.5">{sub.estimatedMinutes} min</div>
                         </div>
                       </button>

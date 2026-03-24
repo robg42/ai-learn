@@ -2,14 +2,14 @@ const jwt = require('jsonwebtoken');
 const { db } = require('../db');
 
 async function authMiddleware(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // Read JWT from HttpOnly cookie, with Bearer header fallback for backward compat
+  const token = req.cookies?.session
+    || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+  if (!token) {
     return res.status(401).json({ error: 'No token provided' });
   }
-
-  const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'changeme_in_production');
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
     // Fetch current role from DB so role changes take effect without re-login
     const result = await db.execute({
       sql: 'SELECT id, email, name, role, last_seen_date FROM users WHERE id = ?',

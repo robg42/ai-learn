@@ -144,9 +144,26 @@ async function initDb() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(user_id, subsection_id)
     )`,
+    `CREATE TABLE IF NOT EXISTS audit_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      actor_id INTEGER REFERENCES users(id),
+      action TEXT NOT NULL,
+      target_type TEXT,
+      target_id TEXT,
+      detail TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
   ]) {
     try { await db.execute({ sql: migration, args: [] }); } catch (_) { /* already exists */ }
   }
 }
 
-module.exports = { db, initDb };
+/** Fire-and-forget audit log entry for admin/security-sensitive actions */
+function audit(actorId, action, targetType, targetId, detail) {
+  db.execute({
+    sql: 'INSERT INTO audit_log (actor_id, action, target_type, target_id, detail) VALUES (?, ?, ?, ?, ?)',
+    args: [actorId, action, targetType || null, targetId != null ? String(targetId) : null, detail || null],
+  }).catch(err => console.error('[audit] write failed:', err.message));
+}
+
+module.exports = { db, initDb, audit };

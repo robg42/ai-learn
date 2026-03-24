@@ -1,11 +1,17 @@
 const express = require('express');
 const { db } = require('../db');
 const authMiddleware = require('../middleware/auth');
+const { VALID_SUBSECTIONS } = require('./progress');
+
+const ALL_VALID_SUBSECTIONS = new Set(Object.values(VALID_SUBSECTIONS).flat());
 
 const router = express.Router();
 
 // GET /api/notes/:subsectionId
 router.get('/:subsectionId', authMiddleware, async (req, res) => {
+  if (!ALL_VALID_SUBSECTIONS.has(req.params.subsectionId)) {
+    return res.status(400).json({ error: 'Invalid subsectionId' });
+  }
   try {
     const result = await db.execute({
       sql: 'SELECT content, updated_at FROM notes WHERE user_id = ? AND subsection_id = ?',
@@ -20,6 +26,9 @@ router.get('/:subsectionId', authMiddleware, async (req, res) => {
 
 // PUT /api/notes/:subsectionId
 router.put('/:subsectionId', authMiddleware, async (req, res) => {
+  if (!ALL_VALID_SUBSECTIONS.has(req.params.subsectionId)) {
+    return res.status(400).json({ error: 'Invalid subsectionId' });
+  }
   const { content } = req.body;
   if (content === undefined) return res.status(400).json({ error: 'content is required' });
   if (typeof content !== 'string' || content.length > 50000) {

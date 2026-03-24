@@ -7,8 +7,8 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const logout = useCallback(async () => {
-    // Clear the HttpOnly cookie by calling a logout endpoint or letting it expire
-    // Also clear legacy localStorage token if present
+    // Clear the HttpOnly cookie server-side
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     localStorage.removeItem('ai_learn_token');
     setUser(null);
   }, []);

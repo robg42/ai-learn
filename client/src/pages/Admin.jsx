@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, Award, BarChart2, BookOpen, Search, Plus,
-  CheckCircle, RefreshCw, X, ChevronDown, ChevronUp, Trophy, Medal, TrendingUp, Eye, EyeOff
+  CheckCircle, RefreshCw, X, ChevronDown, ChevronUp, Trophy, Medal, TrendingUp, Eye, EyeOff,
+  Server, CheckCircle2, XCircle, AlertCircle, Zap, Database, Mail, Key
 } from 'lucide-react';
 import { useProgress } from '../context/ProgressContext';
 import * as LucideIcons from 'lucide-react';
@@ -17,6 +18,7 @@ const TABS = [
   { id: 'badges', label: 'Badge Manager', icon: Award },
   { id: 'analytics', label: 'Analytics', icon: BarChart2 },
   { id: 'content', label: 'Content', icon: BookOpen },
+  { id: 'system', label: 'System', icon: Server },
 ];
 
 const ICON_OPTIONS = [
@@ -70,6 +72,33 @@ export default function Admin() {
   const [awardSearch, setAwardSearch] = useState('');
   const [awardSuccess, setAwardSuccess] = useState('');
   const [awardError, setAwardError] = useState('');
+
+  // System health state
+  const [systemHealth, setSystemHealth] = useState(null);
+  const [systemLoading, setSystemLoading] = useState(false);
+  const [anthropicPing, setAnthropicPing] = useState(null); // null | 'loading' | { ok, latencyMs?, error? }
+
+  const loadSystemHealth = async () => {
+    setSystemLoading(true);
+    setAnthropicPing(null);
+    try {
+      const res = await fetch('/api/admin/system', { credentials: 'include' });
+      setSystemHealth(await res.json());
+    } catch {
+      setSystemHealth(null);
+    }
+    setSystemLoading(false);
+  };
+
+  const pingAnthropic = async () => {
+    setAnthropicPing('loading');
+    try {
+      const res = await fetch('/api/admin/system/ping-anthropic', { method: 'POST', credentials: 'include' });
+      setAnthropicPing(await res.json());
+    } catch {
+      setAnthropicPing({ ok: false, error: 'Network error' });
+    }
+  };
 
   const changeLeaderboard = async (userId, field, value) => {
     setChangingLeaderboardId(userId);
@@ -150,6 +179,10 @@ export default function Admin() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'system' && !systemHealth) loadSystemHealth();
+  }, [activeTab]);
 
   const handleCreateBadge = async (e) => {
     e.preventDefault();
@@ -1125,6 +1158,149 @@ export default function Admin() {
               ))}
             </div>
           )}
+          {/* System Tab */}
+          {activeTab === 'system' && (() => {
+            const StatusIcon = ({ ok }) => ok
+              ? <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
+              : <XCircle className="w-5 h-5 text-red-400 flex-shrink-0" />;
+
+            const EnvRow = ({ name, value }) => {
+              const present = value === true || (typeof value === 'string' && value);
+              const display = value === true ? 'Set' : value === false ? 'Not set' : (value || 'Not set');
+              return (
+                <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                  <span className="text-sm text-text-muted font-mono">{name}</span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded ${present ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
+                    {display}
+                  </span>
+                </div>
+              );
+            };
+
+            return (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-semibold text-text-primary">System Health</h2>
+                  <button
+                    onClick={loadSystemHealth}
+                    disabled={systemLoading}
+                    className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${systemLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
+
+                {systemLoading && (
+                  <div className="flex items-center justify-center py-16">
+                    <RefreshCw className="w-7 h-7 text-primary animate-spin" />
+                  </div>
+                )}
+
+                {!systemLoading && systemHealth && (
+                  <>
+                    {/* Service connectivity cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* Database */}
+                      <div className="card flex items-start gap-3">
+                        <Database className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm text-text-primary">Turso Database</p>
+                            <StatusIcon ok={systemHealth.database?.ok} />
+                          </div>
+                          <p className={`text-xs mt-0.5 ${systemHealth.database?.ok ? 'text-green-400' : 'text-red-400'}`}>
+                            {systemHealth.database?.ok ? 'Connected' : systemHealth.database?.error || 'Error'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Anthropic */}
+                      <div className="card flex items-start gap-3">
+                        <Zap className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm text-text-primary">Anthropic API</p>
+                            <StatusIcon ok={systemHealth.anthropic?.ok} />
+                          </div>
+                          {systemHealth.anthropic?.ok ? (
+                            <p className="text-xs mt-0.5 text-text-muted font-mono truncate">{systemHealth.anthropic.keyHint}</p>
+                          ) : (
+                            <p className="text-xs mt-0.5 text-red-400">Key not set</p>
+                          )}
+                          <button
+                            onClick={pingAnthropic}
+                            disabled={anthropicPing === 'loading' || !systemHealth.anthropic?.ok}
+                            className="mt-2 text-xs px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-text-muted hover:text-text-primary transition-colors disabled:opacity-40"
+                          >
+                            {anthropicPing === 'loading' ? 'Pinging…' : 'Ping API'}
+                          </button>
+                          {anthropicPing && anthropicPing !== 'loading' && (
+                            <p className={`text-xs mt-1 ${anthropicPing.ok ? 'text-green-400' : 'text-red-400'}`}>
+                              {anthropicPing.ok ? `✓ ${anthropicPing.latencyMs}ms` : anthropicPing.error}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Email */}
+                      <div className="card flex items-start gap-3">
+                        <Mail className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm text-text-primary">Email (Gmail)</p>
+                            <StatusIcon ok={systemHealth.email?.ok} />
+                          </div>
+                          {systemHealth.email?.ok ? (
+                            <p className="text-xs mt-0.5 text-text-muted truncate">{systemHealth.email.account}</p>
+                          ) : (
+                            <p className="text-xs mt-0.5 text-yellow-400">Magic links → console only</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    {systemHealth.stats && (
+                      <div className="card">
+                        <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+                          <Database className="w-4 h-4 text-text-muted" />
+                          Database Counts
+                        </h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                          {[
+                            { label: 'Users', value: systemHealth.stats.users },
+                            { label: 'Progress Items', value: systemHealth.stats.progressItems },
+                            { label: 'Badges Awarded', value: systemHealth.stats.badgesAwarded },
+                            { label: 'Notes', value: systemHealth.stats.notes },
+                            { label: 'Audit Events', value: systemHealth.stats.auditEvents },
+                          ].map(({ label, value }) => (
+                            <div key={label} className="text-center">
+                              <p className="text-2xl font-bold text-text-primary">{value.toLocaleString()}</p>
+                              <p className="text-xs text-text-muted mt-0.5">{label}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Env vars */}
+                    <div className="card">
+                      <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+                        <Key className="w-4 h-4 text-text-muted" />
+                        Environment Variables
+                      </h3>
+                      <div className="divide-y divide-white/5">
+                        {Object.entries(systemHealth.env).map(([k, v]) => (
+                          <EnvRow key={k} name={k} value={v} />
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
         </>
       )}
     </div>

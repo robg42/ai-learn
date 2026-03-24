@@ -379,4 +379,82 @@ router.get('/analytics', async (req, res) => {
   }
 });
 
+// GET /api/admin/system — connectivity checks and env status (Anthropic ping is manual)
+router.get('/system', async (req, res) => {
+  const results = {};
+
+  // Database
+  try {
+    await db.execute({ sql: 'SELECT 1', args: [] });
+    results.database = { ok: true };
+  } catch (err) {
+    results.database = { ok: false, error: err.message };
+  }
+
+  // Anthropic API key presence (actual ping is triggered separately via POST)
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  results.anthropic = { ok: !!anthropicKey, keyHint: anthropicKey ? `${anthropicKey.slice(0, 10)}...${anthropicKey.slice(-4)}` : null };
+
+  // Email config
+  const gmailUser = process.env.GMAIL_USER;
+  results.email = {
+    ok: !!(gmailUser && process.env.GMAIL_PASS),
+    account: gmailUser || null,
+  };
+
+  // Env vars
+  results.env = {
+    NODE_ENV:             process.env.NODE_ENV || 'development',
+    JWT_SECRET:           !!process.env.JWT_SECRET,
+    TURSO_DATABASE_URL:   !!process.env.TURSO_DATABASE_URL,
+    TURSO_AUTH_TOKEN:     !!process.env.TURSO_AUTH_TOKEN,
+    ANTHROPIC_API_KEY:    !!anthropicKey,
+    GMAIL_USER:           !!gmailUser,
+    GMAIL_PASS:           !!process.env.GMAIL_PASS,
+    MAGIC_LINK_BASE_URL:  process.env.MAGIC_LINK_BASE_URL || null,
+    CORS_ORIGIN:          process.env.CORS_ORIGIN || null,
+  };
+
+  // Platform stats
+  try {
+    const [users, progress, badges, notes, audit] = await Promise.all([
+      db.execute({ sql: 'SELECT COUNT(*) as n FROM users', args: [] }),
+      db.execute({ sql: 'SELECT COUNT(*) as n FROM progress', args: [] }),
+      db.execute({ sql: 'SELECT COUNT(*) as n FROM badge_awards', args: [] }),
+      db.execute({ sql: 'SELECT COUNT(*) as n FROM notes', args: [] }),
+      db.execute({ sql: 'SELECT COUNT(*) as n FROM audit_log', args: [] }),
+    ]);
+    results.stats = {
+      users:          Number(users.rows[0].n),
+      progressItems:  Number(progress.rows[0].n),
+      badgesAwarded:  Number(badges.rows[0].n),
+      notes:          Number(notes.rows[0].n),
+      auditEvents:    Number(audit.rows[0].n),
+    };
+  } catch (_) {
+    results.stats = null;
+  }
+
+  res.json(results);
+});
+
+// POST /api/admin/system/ping-anthropic — live API connectivity check
+router.post('/system/ping-anthropic', async (req, res) => {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.json({ ok: false, error: 'ANTHROPIC_API_KEY not set' });
+  try {
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey });
+    const start = Date.now();
+    await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1,
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    res.json({ ok: true, latencyMs: Date.now() - start });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
 module.exports = router;

@@ -128,7 +128,7 @@ The app is deployed on Vercel with the following configuration in `vercel.json`:
 
 ## Course Structure
 
-3 sections × 18 lessons = **54 lessons total**
+3 sections × 18 lessons = **54 lessons total**, plus **13 interactive labs**
 
 | Section | Unlocks when |
 |---|---|
@@ -153,6 +153,7 @@ Within each section, lessons unlock sequentially. Quizzes must be passed to proc
 - **Lesson search** in the learn sidebar
 - **Milestone emails** — on section and full course completion
 - **Welcome email** on account creation
+- **Interactive Labs** — 13 hands-on labs covering context windows, prompt injection, hallucination, temperature, RAG quality, red-teaming, defensive prompting, multi-agent debate, HITL design, broken agents, and more
 
 ---
 
@@ -174,6 +175,21 @@ GET  /api/badges                → all badge definitions (for catalog)
 GET  /api/leaderboard           → public leaderboard (show_on_leaderboard=1 only)
 GET  /api/notes/:subsectionId   → user's note for lesson
 PUT  /api/notes/:subsectionId   { content } — upsert note
+```
+
+### Labs
+```
+POST /api/labs/context-window        { messages[] } → { response, tokenCount }
+POST /api/labs/prompt-playground     { prompt, systemPrompt, temperature } → { response }
+POST /api/labs/injection-sandbox     { userInput, systemPrompt } → { response, injectionDetected }
+POST /api/labs/hallucination-hunter  { claim } → { verdict, explanation }
+POST /api/labs/temperature           { prompt, temperature } → { response }
+POST /api/labs/rag-quality           { query, context } → { answer, evaluation }
+POST /api/labs/red-team              { attack } → { response, defended }
+POST /api/labs/defensive-prompt      { prompt } → { safe, response }
+POST /api/labs/multi-agent-debate    { topic } → { agent1, agent2, summary }
+POST /api/labs/hitl-design           { scenario, decision } → { evaluation }
+POST /api/labs/broken-agent          { task } → { steps[], error }
 ```
 
 ### Admin (requires admin role)

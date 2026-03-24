@@ -11,6 +11,7 @@ import {
   LineChart, Line, CartesianGrid
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
+import { SECTIONS as COURSE_SECTIONS } from '../content/course';
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
@@ -268,8 +269,6 @@ export default function Admin() {
     u.name.toLowerCase().includes(search.toLowerCase()) ||
     u.email.toLowerCase().includes(search.toLowerCase())
   );
-
-  const { SECTIONS: COURSE_SECTIONS } = require('../content/course');
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

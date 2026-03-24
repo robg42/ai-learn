@@ -392,13 +392,14 @@ router.get('/system', async (req, res) => {
   }
 
   // Anthropic API key presence (actual ping is triggered separately via POST)
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_KEY;
   results.anthropic = { ok: !!anthropicKey, keyHint: anthropicKey ? `${anthropicKey.slice(0, 10)}...${anthropicKey.slice(-4)}` : null };
 
   // Email config
   const gmailUser = process.env.GMAIL_USER;
+  const gmailPass = process.env.GMAIL_APP_PASSWORD;
   results.email = {
-    ok: !!(gmailUser && process.env.GMAIL_PASS),
+    ok: !!(gmailUser && gmailPass),
     account: gmailUser || null,
   };
 
@@ -410,7 +411,7 @@ router.get('/system', async (req, res) => {
     TURSO_AUTH_TOKEN:     !!process.env.TURSO_AUTH_TOKEN,
     ANTHROPIC_API_KEY:    !!anthropicKey,
     GMAIL_USER:           !!gmailUser,
-    GMAIL_PASS:           !!process.env.GMAIL_PASS,
+    GMAIL_APP_PASSWORD:   !!gmailPass,
     MAGIC_LINK_BASE_URL:  process.env.MAGIC_LINK_BASE_URL || null,
     CORS_ORIGIN:          process.env.CORS_ORIGIN || null,
   };
@@ -440,7 +441,7 @@ router.get('/system', async (req, res) => {
 
 // POST /api/admin/system/ping-anthropic — live API connectivity check
 router.post('/system/ping-anthropic', async (req, res) => {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_KEY;
   if (!apiKey) return res.json({ ok: false, error: 'ANTHROPIC_API_KEY not set' });
   try {
     const Anthropic = require('@anthropic-ai/sdk');

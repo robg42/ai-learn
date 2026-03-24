@@ -1138,18 +1138,20 @@ export default function Admin() {
                           <div>
                             <p className="text-sm font-medium text-text-primary">{sub.title}</p>
                             <p className="text-xs text-text-muted mt-0.5">
-                              {sub.estimatedMinutes} min · {sub.quiz.length} questions ·{' '}
-                              {sub.quiz.map(q => q.type).join(', ')}
+                              {sub.estimatedMinutes} min ·{' '}
+                              {sub.type === 'lab' ? 'Lab' : `${sub.quiz?.length ?? 0} questions · ${sub.quiz?.map(q => q.type).join(', ')}`}
                             </p>
                           </div>
                         </div>
-                        <div className="mt-2 space-y-1">
-                          {sub.quiz.map((q, qi) => (
-                            <p key={q.id} className="text-xs text-text-muted pl-3 border-l border-white/10">
-                              Q{qi + 1}: {q.question}
-                            </p>
-                          ))}
-                        </div>
+                        {sub.quiz && (
+                          <div className="mt-2 space-y-1">
+                            {sub.quiz.map((q, qi) => (
+                              <p key={q.id} className="text-xs text-text-muted pl-3 border-l border-white/10">
+                                Q{qi + 1}: {q.question}
+                              </p>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

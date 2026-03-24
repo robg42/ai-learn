@@ -38,6 +38,7 @@ export default function Learn({ initialTarget }) {
     setActiveSectionId(sectionId);
     setActiveSubsectionId(subsectionId);
     if (window.innerWidth < 768) setSidebarOpen(false);
+    window.history.pushState({}, '', subsectionId ? `/learn/${subsectionId}` : '/learn');
   };
 
   // Navigate to the next UNLOCKED subsection across all courses (and into next section).
@@ -71,6 +72,7 @@ export default function Learn({ initialTarget }) {
     if (next) {
       setActiveSectionId(next.section.id);
       setActiveSubsectionId(next.subsection.id);
+      window.history.pushState({}, '', `/learn/${next.subsection.id}`);
     }
   };
 

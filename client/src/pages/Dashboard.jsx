@@ -29,7 +29,6 @@ export default function Dashboard({ setCurrentPage, setLearnTarget }) {
   const handleContinue = () => {
     if (continueTarget) {
       setLearnTarget(continueTarget);
-      setCurrentPage('learn');
     }
   };
 
@@ -88,7 +87,6 @@ export default function Dashboard({ setCurrentPage, setLearnTarget }) {
                 section={section}
                 onClick={() => {
                   setLearnTarget({ sectionId: section.id });
-                  setCurrentPage('learn');
                 }}
               />
             ))}

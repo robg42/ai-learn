@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { ProgressProvider, useProgress } from './context/ProgressContext';
+import { SECTIONS } from './content/course';
 import Login from './components/auth/Login';
 import Navbar from './components/layout/Navbar';
 import Dashboard from './pages/Dashboard';
@@ -11,6 +12,39 @@ import Admin from './pages/Admin';
 import Leaderboard from './pages/Leaderboard';
 import Labs from './pages/Labs';
 import BadgeModal from './components/badges/BadgeModal';
+
+const PAGE_PATHS = {
+  dashboard: '/',
+  learn: '/learn',
+  labs: '/labs',
+  leaderboard: '/leaderboard',
+  admin: '/admin',
+  profile: '/profile',
+};
+
+function parseUrl() {
+  const path = window.location.pathname;
+  if (path.startsWith('/learn/')) {
+    const subsectionId = path.slice('/learn/'.length);
+    if (subsectionId) {
+      const section = SECTIONS.find(s =>
+        [s, ...(s.additionalCourses || [])].some(c =>
+          (c.subsections || []).some(sub => sub.id === subsectionId)
+        )
+      );
+      return { page: 'learn', learnTarget: { sectionId: section?.id, subsectionId } };
+    }
+  }
+  const page = Object.entries(PAGE_PATHS).find(([, p]) => p === path)?.[0] || 'dashboard';
+  return { page, learnTarget: null };
+}
+
+function buildUrl(page, learnTarget) {
+  if (page === 'learn' && learnTarget?.subsectionId) {
+    return `/learn/${learnTarget.subsectionId}`;
+  }
+  return PAGE_PATHS[page] || '/';
+}
 
 function NamePrompt() {
   const { updateName } = useAuth();
@@ -61,8 +95,9 @@ function NamePrompt() {
 
 function AppContent() {
   const { user, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState('dashboard');
-  const [learnTarget, setLearnTarget] = useState(null);
+  const initial = parseUrl();
+  const [currentPage, setCurrentPage] = useState(initial.page);
+  const [learnTarget, setLearnTarget] = useState(initial.learnTarget);
   const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
@@ -74,6 +109,17 @@ function AppContent() {
       document.documentElement.classList.add('light');
     }
   }, [darkMode]);
+
+  // Sync URL → state on back/forward
+  useEffect(() => {
+    const onPopState = () => {
+      const { page, learnTarget: lt } = parseUrl();
+      setCurrentPage(page);
+      setLearnTarget(lt);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   if (loading) {
     return (
@@ -90,8 +136,17 @@ function AppContent() {
   if (!user.name) return <NamePrompt />;
 
   const handleSetPage = (page) => {
+    const url = buildUrl(page, null);
+    window.history.pushState({}, '', url);
     setCurrentPage(page);
     if (page !== 'learn') setLearnTarget(null);
+  };
+
+  const handleSetLearnTarget = (target) => {
+    const url = buildUrl('learn', target);
+    window.history.pushState({}, '', url);
+    setLearnTarget(target);
+    setCurrentPage('learn');
   };
 
   return (
@@ -100,7 +155,7 @@ function AppContent() {
         currentPage={currentPage}
         handleSetPage={handleSetPage}
         learnTarget={learnTarget}
-        setLearnTarget={setLearnTarget}
+        setLearnTarget={handleSetLearnTarget}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         user={user}
@@ -115,14 +170,14 @@ function AppWithPreview({ currentPage, handleSetPage, learnTarget, setLearnTarge
   return (
     <div className="min-h-screen bg-bg-dark text-text-primary">
       {previewAll && user?.role === 'admin' && (
-        <div className="bg-amber-500/20 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-amber-300 text-xs font-medium">
+        <div className={`border-b px-4 py-2 flex items-center justify-between ${darkMode ? 'bg-amber-500/20 border-amber-500/30' : 'bg-amber-400 border-amber-500'}`}>
+          <div className={`flex items-center gap-2 text-xs font-medium ${darkMode ? 'text-amber-300' : 'text-amber-950'}`}>
             <Eye className="w-3.5 h-3.5" />
             All-Seeing Eye active — all content unlocked for admin preview
           </div>
           <button
             onClick={() => setPreviewAll(false)}
-            className="text-xs text-amber-400 hover:text-amber-200 flex items-center gap-1 transition-colors"
+            className={`text-xs flex items-center gap-1 transition-colors ${darkMode ? 'text-amber-400 hover:text-amber-200' : 'text-amber-900 hover:text-amber-700'}`}
           >
             <EyeOff className="w-3 h-3" /> Disable
           </button>
